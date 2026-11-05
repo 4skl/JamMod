@@ -126,8 +126,9 @@ public class ClientAudioEngine {
 
     public static int getCurrentCalculatedVolume() {
         Minecraft mc = Minecraft.getInstance();
-        return Math.round(mc.options.getSoundSourceVolume(SoundSource.MASTER) *
-                mc.options.getSoundSourceVolume(SoundSource.MUSIC) * 100.0f);
+        float master = mc.options.getSoundSourceVolume(SoundSource.MASTER);
+        float music = mc.options.getSoundSourceVolume(SoundSource.MUSIC);
+        return Math.round(master * music * 100.0f);
     }
 
     private static void startAudioThread() {
@@ -155,6 +156,33 @@ public class ClientAudioEngine {
         audioThread.start();
     }
 
+    public static void fetchMetadataBackground(String url, int index) {
+        init();
+        if (playerManager == null) return;
+
+        playerManager.loadItem(url, new AudioLoadResultHandler() {
+            @Override
+            public void trackLoaded(AudioTrack track) {
+                int durationSecs = (int) (track.getDuration() / 1000L);
+                ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                        C2SJamActionPacket.Action.UPDATE_METADATA, "", track.getInfo().title, false, index, durationSecs));
+            }
+
+            @Override
+            public void playlistLoaded(AudioPlaylist playlist) {
+                if (!playlist.getTracks().isEmpty()) {
+                    AudioTrack track = playlist.getSelectedTrack() != null ? playlist.getSelectedTrack() : playlist.getTracks().get(0);
+                    int durationSecs = (int) (track.getDuration() / 1000L);
+                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                            C2SJamActionPacket.Action.UPDATE_METADATA, "", track.getInfo().title, false, index, durationSecs));
+                }
+            }
+
+            @Override public void noMatches() {}
+            @Override public void loadFailed(FriendlyException exception) {}
+        });
+    }
+
     public static void play(String trackUrl, long offsetMs) {
         init();
         if (playerManager == null || player == null) return;
@@ -167,7 +195,6 @@ public class ClientAudioEngine {
                     track.setPosition(offsetMs);
                 }
                 player.playTrack(track);
-                sendChatMessage("§6[JamMod]§r Now playing: §a" + track.getInfo().title);
             }
 
             @Override
@@ -180,7 +207,6 @@ public class ClientAudioEngine {
                     track.setPosition(offsetMs);
                 }
                 player.playTrack(track);
-                sendChatMessage("§6[JamMod]§r Now playing: §a" + track.getInfo().title);
             }
 
             @Override
@@ -193,6 +219,22 @@ public class ClientAudioEngine {
                 sendChatMessage("§c[JamMod] Stream error: " + exception.getMessage());
             }
         });
+    }
+
+    public static long getPosition() {
+        if (player != null && player.getPlayingTrack() != null) {
+            return player.getPlayingTrack().getPosition();
+        }
+        return 0;
+    }
+
+    public static void seek(long offsetMs) {
+        if (player != null && player.getPlayingTrack() != null) {
+            AudioTrack track = player.getPlayingTrack();
+            if (offsetMs >= 0 && offsetMs <= track.getDuration()) {
+                track.setPosition(offsetMs);
+            }
+        }
     }
 
     public static void setPaused(boolean paused) {

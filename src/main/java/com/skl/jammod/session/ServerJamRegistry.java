@@ -34,6 +34,7 @@ public class ServerJamRegistry {
                 List<SyncedJam> list = GSON.fromJson(reader, type);
                 if (list != null) {
                     for (SyncedJam jam : list) {
+                        jam.ensureRuntimeState();
                         JAMS.put(jam.getId(), jam);
                     }
                 }
@@ -61,7 +62,7 @@ public class ServerJamRegistry {
 
     public static synchronized boolean deleteJam(String idOrName, UUID requester) {
         SyncedJam jam = findJam(idOrName, requester);
-        if (jam != null && jam.getOwnerId().equals(requester)) {
+        if (jam != null && jam.isOwner(requester)) {
             for (UUID listener : jam.getListeners()) {
                 PLAYER_TO_JAM.remove(listener);
             }
@@ -72,12 +73,12 @@ public class ServerJamRegistry {
         return false;
     }
 
-    public static synchronized boolean joinJam(String idOrName, UUID player) {
+    public static synchronized boolean joinJam(String idOrName, UUID player, String playerName) {
         SyncedJam jam = findJam(idOrName, player);
         if (jam != null && jam.isAllowed(player)) {
             leaveCurrentJam(player);
             PLAYER_TO_JAM.put(player, jam.getId());
-            jam.addListener(player);
+            jam.addListener(player, playerName);
             return true;
         }
         return false;
@@ -101,13 +102,21 @@ public class ServerJamRegistry {
     }
 
     public static SyncedJam findJam(String query, UUID player) {
-        if (JAMS.containsKey(query)) {
-            SyncedJam j = JAMS.get(query);
-            if (j.isAllowed(player)) return j;
-        }
+        if (query == null || query.isBlank()) return null;
+        String clean = query.trim();
+
+        // 1. Direct ID match
         for (SyncedJam j : JAMS.values()) {
-            if (j.getName().equalsIgnoreCase(query) && j.isAllowed(player)) {
-                return j;
+            j.ensureRuntimeState();
+            if (j.getId().equalsIgnoreCase(clean)) {
+                if (j.isAllowed(player)) return j;
+            }
+        }
+        // 2. Name match
+        for (SyncedJam j : JAMS.values()) {
+            j.ensureRuntimeState();
+            if (j.getName().equalsIgnoreCase(clean)) {
+                if (j.isAllowed(player)) return j;
             }
         }
         return null;
@@ -116,6 +125,7 @@ public class ServerJamRegistry {
     public static List<SyncedJam> getVisibleJams(UUID player) {
         List<SyncedJam> list = new ArrayList<>();
         for (SyncedJam j : JAMS.values()) {
+            j.ensureRuntimeState();
             if (j.isAllowed(player)) {
                 list.add(j);
             }
@@ -125,22 +135,25 @@ public class ServerJamRegistry {
 
     public static void broadcastJamState(MinecraftServer server, SyncedJam jam) {
         if (jam == null || server == null) return;
-        S2CSyncJamPacket packet = new S2CSyncJamPacket(
-                jam.getId(),
-                jam.getName(),
-                jam.getOwnerName(),
-                jam.isPrivate(),
-                jam.getCurrentTrack(),
-                jam.getCurrentTrackIndex(),
-                jam.getStartTimestamp(),
-                jam.isPlaying(),
-                jam.getTracks(),
-                jam.getListeners().size()
-        );
+        jam.ensureRuntimeState();
+        JamTrack cur = jam.getCurrentTrack();
+        String curUrl = cur != null ? cur.getUrl() : "";
+        String curTitle = cur != null ? cur.getTitle() : "";
 
         for (UUID memberId : jam.getListeners()) {
             ServerPlayer member = server.getPlayerList().getPlayer(memberId);
             if (member != null) {
+                boolean canEdit = jam.canEdit(memberId);
+                boolean isOwner = jam.isOwner(memberId);
+                boolean isAdmin = jam.isAdmin(memberId);
+                S2CSyncJamPacket packet = new S2CSyncJamPacket(
+                        jam.getId(), jam.getName(), jam.getOwnerName(), jam.isPrivate(),
+                        jam.getEditPolicy(), jam.getRepeatMode(), jam.isShuffle(),
+                        curUrl, curTitle, jam.getCurrentTrackIndex(),
+                        jam.getStartTimestamp(), jam.isPlaying(), jam.getTracks(),
+                        jam.getMemberList(),
+                        jam.getListeners().size(), canEdit, isOwner, isAdmin
+                );
                 ModNetworking.sendToPlayer(member, packet);
             }
         }
@@ -149,16 +162,22 @@ public class ServerJamRegistry {
     public static void broadcastDirectory(MinecraftServer server) {
         if (server == null) return;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            List<SyncedJam> visible = getVisibleJams(player.getUUID());
-            List<S2CSyncJamListPacket.JamSummary> summaries = new ArrayList<>();
-            for (SyncedJam j : visible) {
-                summaries.add(new S2CSyncJamListPacket.JamSummary(
-                        j.getId(), j.getName(), j.getOwnerId(), j.getOwnerName(),
-                        j.isPrivate(), j.getTracks().size(), j.getListeners().size(),
-                        j.isPlaying(), j.getCurrentTrack()
-                ));
-            }
-            ModNetworking.sendToPlayer(player, new S2CSyncJamListPacket(summaries));
+            syncDirectoryToPlayer(player);
         }
+    }
+
+    public static void syncDirectoryToPlayer(ServerPlayer player) {
+        List<SyncedJam> visible = getVisibleJams(player.getUUID());
+        List<S2CSyncJamListPacket.JamSummary> summaries = new ArrayList<>();
+        for (SyncedJam j : visible) {
+            j.ensureRuntimeState();
+            JamTrack cur = j.getCurrentTrack();
+            summaries.add(new S2CSyncJamListPacket.JamSummary(
+                    j.getId(), j.getName(), j.getOwnerId(), j.getOwnerName(),
+                    j.isPrivate(), j.getTracks().size(), j.getListeners().size(),
+                    j.isPlaying(), cur != null ? cur.getTitle() : ""
+            ));
+        }
+        ModNetworking.sendToPlayer(player, new S2CSyncJamListPacket(summaries));
     }
 }

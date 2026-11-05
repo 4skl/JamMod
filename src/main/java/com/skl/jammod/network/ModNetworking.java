@@ -8,7 +8,7 @@ import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public class ModNetworking {
-    private static final String PROTOCOL_VERSION = "2";
+    private static final String PROTOCOL_VERSION = "3";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(JamMod.MODID, "main"),
             () -> PROTOCOL_VERSION,
@@ -20,12 +20,14 @@ public class ModNetworking {
     private static int id() { return packetId++; }
 
     public static void register() {
+        // C2S Packets
         CHANNEL.messageBuilder(C2SJamActionPacket.class, id(), NetworkDirection.PLAY_TO_SERVER)
                 .encoder(C2SJamActionPacket::encode)
                 .decoder(C2SJamActionPacket::decode)
                 .consumerMainThread(C2SJamActionPacket::handle)
                 .add();
 
+        // S2C Packets
         CHANNEL.messageBuilder(S2CSyncJamPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(S2CSyncJamPacket::encode)
                 .decoder(S2CSyncJamPacket::decode)
@@ -36,6 +38,12 @@ public class ModNetworking {
                 .encoder(S2CSyncJamListPacket::encode)
                 .decoder(S2CSyncJamListPacket::decode)
                 .consumerMainThread(S2CSyncJamListPacket::handle)
+                .add();
+
+        CHANNEL.messageBuilder(S2CSetLocalVolumePacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(S2CSetLocalVolumePacket::encode)
+                .decoder(S2CSetLocalVolumePacket::decode)
+                .consumerMainThread(S2CSetLocalVolumePacket::handle)
                 .add();
     }
 

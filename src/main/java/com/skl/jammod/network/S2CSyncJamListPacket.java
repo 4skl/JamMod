@@ -1,7 +1,5 @@
 package com.skl.jammod.network;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.skl.jammod.client.ClientJamManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
@@ -18,31 +16,51 @@ public class S2CSyncJamListPacket {
                              boolean isPrivate, int trackCount, int listeners,
                              boolean playing, String currentTrack) {}
 
-    private static final Gson GSON = new Gson();
-    private final String json;
+    private final List<JamSummary> summaries;
 
     public S2CSyncJamListPacket(List<JamSummary> summaries) {
-        this.json = GSON.toJson(summaries);
-    }
-
-    public S2CSyncJamListPacket(String json) {
-        this.json = json;
+        this.summaries = summaries != null ? summaries : new ArrayList<>();
     }
 
     public static void encode(S2CSyncJamListPacket msg, FriendlyByteBuf buf) {
-        buf.writeUtf(msg.json, 262144);
+        buf.writeInt(msg.summaries.size());
+        for (JamSummary s : msg.summaries) {
+            buf.writeUtf(s.id());
+            buf.writeUtf(s.name());
+            buf.writeUUID(s.ownerId());
+            buf.writeUtf(s.ownerName());
+            buf.writeBoolean(s.isPrivate());
+            buf.writeInt(s.trackCount());
+            buf.writeInt(s.listeners());
+            buf.writeBoolean(s.playing());
+            buf.writeUtf(s.currentTrack());
+        }
     }
 
     public static S2CSyncJamListPacket decode(FriendlyByteBuf buf) {
-        return new S2CSyncJamListPacket(buf.readUtf(262144));
+        int size = buf.readInt();
+        List<JamSummary> list = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            list.add(new JamSummary(
+                    buf.readUtf(),
+                    buf.readUtf(),
+                    buf.readUUID(),
+                    buf.readUtf(),
+                    buf.readBoolean(),
+                    buf.readInt(),
+                    buf.readInt(),
+                    buf.readBoolean(),
+                    buf.readUtf()
+            ));
+        }
+        return new S2CSyncJamListPacket(list);
     }
 
     public static void handle(S2CSyncJamListPacket msg, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() ->
-                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
-                    List<JamSummary> list = GSON.fromJson(msg.json, new TypeToken<ArrayList<JamSummary>>() {}.getType());
-                    ClientJamManager.setDirectory(list != null ? list : new ArrayList<>());
-                })
+                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
+                        ClientJamManager.setDirectory(msg.summaries)
+                )
         );
         ctx.get().setPacketHandled(true);
     }

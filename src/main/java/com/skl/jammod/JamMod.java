@@ -3,6 +3,8 @@ package com.skl.jammod;
 import com.mojang.logging.LogUtils;
 import com.skl.jammod.network.ModNetworking;
 import com.skl.jammod.session.ServerJamRegistry;
+import com.skl.jammod.session.SyncedJam;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
@@ -31,6 +33,17 @@ public class JamMod {
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         ServerJamRegistry.init();
+    }
+
+    @SubscribeEvent
+    public void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            ServerJamRegistry.syncDirectoryToPlayer(player);
+            SyncedJam jam = ServerJamRegistry.getJamByPlayer(player.getUUID());
+            if (jam != null) {
+                ServerJamRegistry.broadcastJamState(player.getServer(), jam);
+            }
+        }
     }
 
     @SubscribeEvent
