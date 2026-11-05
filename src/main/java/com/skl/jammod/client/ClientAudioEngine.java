@@ -1,5 +1,6 @@
 package com.skl.jammod.client;
 
+import com.sedmelluq.discord.lavaplayer.format.AudioDataFormat;
 import com.sedmelluq.discord.lavaplayer.format.StandardAudioDataFormats;
 import com.sedmelluq.discord.lavaplayer.player.*;
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
@@ -34,27 +35,22 @@ public class ClientAudioEngine {
     private static volatile boolean running = false;
     private static boolean initialized = false;
 
+    private static final AudioDataFormat AUDIO_FORMAT = StandardAudioDataFormats.DISCORD_PCM_S16_BE;
+
     public static synchronized void init() {
         if (initialized) return;
 
         try {
             playerManager = new DefaultAudioPlayerManager();
-            playerManager.getConfiguration().setOutputFormat(StandardAudioDataFormats.COMMON_PCM_S16_BE);
+            playerManager.getConfiguration().setOutputFormat(AUDIO_FORMAT);
 
-            // Configure YouTube with remote cipher to bypass signature puzzles
             YoutubeSourceOptions options = new YoutubeSourceOptions();
             options.setRemoteCipher("https://cipher.kikkia.dev/", "", "JamMod");
 
             ytSource = new YoutubeAudioSourceManager(options, new Client[]{
-                    new Tv(),
-                    new TvHtml5Simply(),
-                    new AndroidVr(),
-                    new Music(),
-                    new Web(),
-                    new WebEmbedded()
+                    new Tv(), new TvHtml5Simply(), new AndroidVr(), new Music(), new Web(), new WebEmbedded()
             });
 
-            // PS4 User-Agent rewrite for YouTube TVHTML5 validation
             final String ps4UserAgent = "Mozilla/5.0 (PlayStation; PlayStation 4/12.00) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15";
             ytSource.getHttpInterfaceManager().configureBuilder(builder ->
                     builder.addInterceptorFirst((HttpRequest request, HttpContext context) -> {
@@ -84,7 +80,7 @@ public class ClientAudioEngine {
                 @Override
                 public void onTrackEnd(AudioPlayer player, AudioTrack track, AudioTrackEndReason endReason) {
                     if (endReason == AudioTrackEndReason.FINISHED) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SKIP, ""));
+                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SKIP));
                     }
                 }
             });
@@ -93,7 +89,7 @@ public class ClientAudioEngine {
             startAudioThread();
 
             initialized = true;
-            JamMod.LOGGER.info("[JamMod] Audio Engine initialized successfully.");
+            JamMod.LOGGER.info("[JamMod] Audio Engine initialized at {} Hz.", AUDIO_FORMAT.sampleRate);
         } catch (Throwable t) {
             JamMod.LOGGER.error("[JamMod] Failed to initialize Audio Engine: ", t);
         }
@@ -101,7 +97,13 @@ public class ClientAudioEngine {
 
     private static void initAudioLine() {
         try {
-            AudioFormat format = new AudioFormat(48000.0f, 16, 2, true, true);
+            AudioFormat format = new AudioFormat(
+                    AUDIO_FORMAT.sampleRate,
+                    16,
+                    AUDIO_FORMAT.channelCount,
+                    true,
+                    true
+            );
             DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
             if (!AudioSystem.isLineSupported(info)) return;
 
@@ -117,8 +119,15 @@ public class ClientAudioEngine {
         if (player == null) return;
         Minecraft mc = Minecraft.getInstance();
         float master = mc.options.getSoundSourceVolume(SoundSource.MASTER);
-        float records = mc.options.getSoundSourceVolume(SoundSource.RECORDS);
-        player.setVolume(Math.max(0, Math.min(100, Math.round(master * records * 100.0f))));
+        float music = mc.options.getSoundSourceVolume(SoundSource.MUSIC);
+        int vol = Math.round(master * music * 100.0f);
+        player.setVolume(Math.max(0, Math.min(100, vol)));
+    }
+
+    public static int getCurrentCalculatedVolume() {
+        Minecraft mc = Minecraft.getInstance();
+        return Math.round(mc.options.getSoundSourceVolume(SoundSource.MASTER) *
+                mc.options.getSoundSourceVolume(SoundSource.MUSIC) * 100.0f);
     }
 
     private static void startAudioThread() {

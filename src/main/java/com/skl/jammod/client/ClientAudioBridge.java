@@ -4,6 +4,7 @@ import com.skl.jammod.JamMod;
 import com.skl.jammod.gui.JamScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -23,6 +24,12 @@ public class ClientAudioBridge {
                 mc.setScreen(new JamScreen());
             }
         }
+    }
+
+    @SubscribeEvent
+    public static void onClientDisconnect(ClientPlayerNetworkEvent.LoggingOut event) {
+        // Stops playback immediately when quitting to title or disconnecting from any server
+        ClientJamManager.reset();
     }
 
     public static void playTrack(String trackUrl, long startTimestamp) {

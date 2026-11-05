@@ -5,6 +5,7 @@ import com.skl.jammod.network.ModNetworking;
 import com.skl.jammod.session.ServerJamRegistry;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -28,7 +29,12 @@ public class JamMod {
     }
 
     @SubscribeEvent
+    public void onServerStarting(ServerStartingEvent event) {
+        ServerJamRegistry.init();
+    }
+
+    @SubscribeEvent
     public void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        ServerJamRegistry.leaveSession(event.getEntity().getUUID());
+        ServerJamRegistry.leaveCurrentJam(event.getEntity().getUUID());
     }
 }
