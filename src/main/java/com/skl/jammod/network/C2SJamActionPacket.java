@@ -70,7 +70,7 @@ public class C2SJamActionPacket {
             UUID uuid = player.getUUID();
             String playerName = player.getGameProfile().getName();
 
-            // Resolution fallback so targetId or payload can be passed interchangeably
+            // Dual resolution fallback so targetId or payload can be passed interchangeably
             String idOrName = !msg.targetId.isBlank() ? msg.targetId : msg.payload;
 
             switch (msg.action) {
@@ -171,29 +171,30 @@ public class C2SJamActionPacket {
                 } else if (msg.action == Action.CYCLE_MEMBER_ROLE && !msg.targetId.isBlank()) {
                     try {
                         UUID targetMember = UUID.fromString(msg.targetId);
-                        active.cycleRole(targetMember);
+                        active.cycleRole(uuid, targetMember);
                         ServerJamRegistry.save();
                         ServerJamRegistry.broadcastJamState(player.getServer(), active);
                     } catch (Exception ignored) {}
                     return;
                 } else if (msg.action == Action.ADD_MEMBER_BY_NAME && !msg.payload.isBlank()) {
-                    ServerPlayer target = player.getServer().getPlayerList().getPlayerByName(msg.payload.trim());
-                    if (target != null) {
-                        active.setRole(target.getUUID(), target.getName().getString(), SyncedJam.Role.EDITOR);
-                    } else {
-                        // Offline player registration
-                        UUID offlineUuid = UUID.nameUUIDFromBytes(("OfflinePlayer:" + msg.payload.trim()).getBytes());
-                        active.setRole(offlineUuid, msg.payload.trim(), SyncedJam.Role.EDITOR);
-                    }
+                    String targetName = msg.payload.trim();
+                    ServerPlayer target = player.getServer().getPlayerList().getPlayerByName(targetName);
+                    UUID targetUuid = target != null ? target.getUUID() : UUID.nameUUIDFromBytes(("OfflinePlayer:" + targetName).getBytes());
+                    active.setRole(targetUuid, targetName, SyncedJam.Role.EDITOR);
                     ServerJamRegistry.save();
                     ServerJamRegistry.broadcastJamState(player.getServer(), active);
-                    player.sendSystemMessage(Component.literal("§6[JamMod] §aAdded §f" + msg.payload.trim() + " §aas Editor."));
+                    player.sendSystemMessage(Component.literal("§6[JamMod] §aAdded §f" + targetName + " §aas Editor."));
                     return;
                 } else if (msg.action == Action.REMOVE_MEMBER && !msg.targetId.isBlank()) {
                     try {
-                        active.removeMember(UUID.fromString(msg.targetId));
-                        ServerJamRegistry.save();
-                        ServerJamRegistry.broadcastJamState(player.getServer(), active);
+                        UUID targetMember = UUID.fromString(msg.targetId);
+                        if (active.canManageMember(uuid, targetMember)) {
+                            active.removeMember(targetMember);
+                            ServerJamRegistry.save();
+                            ServerJamRegistry.broadcastJamState(player.getServer(), active);
+                        } else {
+                            player.sendSystemMessage(Component.literal("§c[JamMod] You do not have authority to remove this member."));
+                        }
                     } catch (Exception ignored) {}
                     return;
                 }

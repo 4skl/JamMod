@@ -6,8 +6,10 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.skl.jammod.JamMod;
+import com.skl.jammod.client.OverlayCorner;
 import com.skl.jammod.network.ModNetworking;
 import com.skl.jammod.network.S2CSetLocalVolumePacket;
+import com.skl.jammod.network.S2CSetOverlayConfigPacket;
 import com.skl.jammod.network.S2CSyncJamPacket;
 import com.skl.jammod.session.*;
 import net.minecraft.ChatFormatting;
@@ -124,6 +126,15 @@ public class JamCommands {
                         .then(Commands.argument("level", IntegerArgumentType.integer(0, 100))
                                 .executes(ctx -> setVolume(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "level")))))
 
+                // Overlay Controls
+                .then(Commands.literal("overlay")
+                        .then(Commands.literal("toggle")
+                                .executes(ctx -> toggleOverlay(ctx.getSource())))
+                        .then(Commands.literal("corner")
+                                .then(Commands.argument("position", StringArgumentType.word())
+                                        .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"top_right", "top_left", "bottom_right", "bottom_left"}, b))
+                                        .executes(ctx -> setOverlayCorner(ctx.getSource(), StringArgumentType.getString(ctx, "position"))))))
+
                 // Administration & Policies
                 .then(Commands.literal("policy").executes(ctx -> cyclePolicy(ctx.getSource())))
                 .then(Commands.literal("privacy").executes(ctx -> togglePrivacy(ctx.getSource())))
@@ -150,6 +161,7 @@ public class JamCommands {
                             .append(clickable("/jam add <url>", "/jam add ", "Add track to queue")).append("\n")
                             .append(clickable("/jam pause | resume | toggle", "/jam toggle", "Toggle playback state")).append("\n")
                             .append(clickable("/jam skip | prev", "/jam skip", "Skip or previous track")).append("\n")
+                            .append(clickable("/jam overlay toggle | corner <corner>", "/jam overlay toggle", "Configure HUD")).append("\n")
                             .append(clickable("/jam policy", "/jam policy", "Cycle edit policy")).append("\n")
                             .append(clickable("/jam role <player> <admin|editor|listener>", "/jam role ", "Set member role")).append("\n")
                             .append(clickable("/jam volume <0-100>", "/jam volume ", "Set music volume")), false);
@@ -449,6 +461,23 @@ public class JamCommands {
         return 1;
     }
 
+    private static int toggleOverlay(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        ModNetworking.sendToPlayer(player, S2CSetOverlayConfigPacket.toggle());
+        source.sendSuccess(() -> Component.literal("§6[JamMod] §aToggled HUD overlay."), false);
+        return 1;
+    }
+
+    private static int setOverlayCorner(CommandSourceStack source, String cornerName) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        OverlayCorner corner = OverlayCorner.fromString(cornerName);
+        ModNetworking.sendToPlayer(player, S2CSetOverlayConfigPacket.corner(corner));
+        source.sendSuccess(() -> Component.literal("§6[JamMod] §aHUD overlay position set to §e" + corner.getDisplayName()), false);
+        return 1;
+    }
+
     private static int cyclePolicy(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
@@ -483,6 +512,10 @@ public class JamCommands {
         }
         if (role == SyncedJam.Role.ADMIN && !jam.isOwner(player.getUUID())) {
             source.sendFailure(Component.literal("§cOnly the Jam host can promote players to Admin."));
+            return 0;
+        }
+        if (!jam.canManageMember(player.getUUID(), target.getUUID())) {
+            source.sendFailure(Component.literal("§cYou cannot modify the role of this member."));
             return 0;
         }
 

@@ -26,8 +26,9 @@ public class ClientHUDOverlay {
     public static void onRenderGui(RenderGuiEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.options.hideGui) return;
+        if (!ClientJamConfig.isOverlayEnabled()) return;
 
-        // While JamScreen or any GUI is open, pause the countdown timer so the full animation displays once closed
+        // Freeze countdown timer while a GUI screen is open so it shows when closed
         if (mc.screen != null) {
             popupStartTime = System.currentTimeMillis();
             return;
@@ -38,6 +39,7 @@ public class ClientHUDOverlay {
 
         GuiGraphics graphics = event.getGuiGraphics();
         int screenWidth = mc.getWindow().getGuiScaledWidth();
+        int screenHeight = mc.getWindow().getGuiScaledHeight();
 
         float alpha = 1.0f;
         if (elapsed > POPUP_DURATION - 1000) {
@@ -46,8 +48,32 @@ public class ClientHUDOverlay {
 
         int width = 195;
         int height = 28;
-        int x = screenWidth - width - 10;
-        int y = 10;
+
+        // Position based on configured corner
+        OverlayCorner corner = ClientJamConfig.getOverlayCorner();
+        int x, y;
+        switch (corner) {
+            case TOP_LEFT -> {
+                x = 10;
+                y = 10;
+            }
+            case BOTTOM_LEFT -> {
+                x = 10;
+                y = screenHeight - height - 12;
+            }
+            case BOTTOM_RIGHT -> {
+                x = screenWidth - width - 10;
+                y = screenHeight - height - 12;
+            }
+            case TOP_RIGHT -> {
+                x = screenWidth - width - 10;
+                y = 10;
+            }
+            default -> {
+                x = screenWidth - width - 10;
+                y = 10;
+            }
+        }
 
         RenderSystem.enableBlend();
         int bgAlpha = (int) (alpha * 0xDD) << 24;

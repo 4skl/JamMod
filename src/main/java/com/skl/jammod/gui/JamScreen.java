@@ -1,6 +1,7 @@
 package com.skl.jammod.gui;
 
 import com.skl.jammod.client.ClientAudioEngine;
+import com.skl.jammod.client.ClientJamConfig;
 import com.skl.jammod.client.ClientJamManager;
 import com.skl.jammod.network.C2SJamActionPacket;
 import com.skl.jammod.network.ModNetworking;
@@ -24,7 +25,7 @@ import java.util.List;
 import java.util.UUID;
 
 public class JamScreen extends Screen {
-    public enum View { PLAYER, ADD_TRACK, SETTINGS_PERMS, ROLES, INVITE, DIRECTORY_PUBLIC, DIRECTORY_MY, CREATE_JAM }
+    public enum View { PLAYER, ADD_TRACK, SETTINGS, ROLES, INVITE, DIRECTORY_PUBLIC, DIRECTORY_MY, CREATE_JAM }
     private View currentView = View.PLAYER;
 
     private EditBox inputField;
@@ -35,7 +36,7 @@ public class JamScreen extends Screen {
     private int page = 0;
     private static final int ITEMS_PER_PAGE = 5;
 
-    // Responsive pagination buttons
+    // Responsive pagination controls
     private Button prevPageBtn;
     private Button nextPageBtn;
 
@@ -45,6 +46,8 @@ public class JamScreen extends Screen {
     private Button shuffleButton;
     private Button policyButton;
     private Button privacyButton;
+    private Button overlayToggleBtn;
+    private Button overlayCornerBtn;
     private AbstractSliderButton volumeSlider;
 
     public JamScreen() {
@@ -55,7 +58,7 @@ public class JamScreen extends Screen {
     protected void init() {
         ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.REQUEST_SYNC));
 
-        if (!ClientJamManager.isInJam() && (currentView == View.PLAYER || currentView == View.ADD_TRACK || currentView == View.SETTINGS_PERMS || currentView == View.ROLES || currentView == View.INVITE)) {
+        if (!ClientJamManager.isInJam() && (currentView == View.PLAYER || currentView == View.ADD_TRACK || currentView == View.SETTINGS || currentView == View.ROLES || currentView == View.INVITE)) {
             currentView = View.DIRECTORY_PUBLIC;
         }
 
@@ -132,7 +135,7 @@ public class JamScreen extends Screen {
                     };
                     repeatButton = Button.builder(Component.literal(repSymbol), b ->
                             ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.CYCLE_REPEAT))
-                    ).bounds(midX - 39, 32, 24, 18).tooltip(Tooltip.create(Component.literal("Repeat: Off / All / One"))).build();
+                    ).bounds(midX - 39, 32, 24, 18).tooltip(Tooltip.create(Component.literal("Repeat Mode: Off / All / One"))).build();
                     this.addRenderableWidget(repeatButton);
 
                     shuffleButton = Button.builder(Component.literal(ClientJamManager.isShuffle() ? "§a🔀" : "§7🔀"), b ->
@@ -144,10 +147,9 @@ public class JamScreen extends Screen {
                 this.addRenderableWidget(Button.builder(Component.literal("👥"), b -> switchView(View.INVITE))
                         .bounds(midX + 16, 32, 24, 18).tooltip(Tooltip.create(Component.literal("Invite Online Players"))).build());
 
-                if (ClientJamManager.canManage()) {
-                    this.addRenderableWidget(Button.builder(Component.literal("⚙"), b -> switchView(View.SETTINGS_PERMS))
-                            .bounds(midX + 43, 32, 24, 18).tooltip(Tooltip.create(Component.literal("Jam Settings & Roles"))).build());
-                }
+                // Settings button (Available to all for Client HUD settings, + Room settings if Host/Admin)
+                this.addRenderableWidget(Button.builder(Component.literal("⚙"), b -> switchView(View.SETTINGS))
+                        .bounds(midX + 43, 32, 24, 18).tooltip(Tooltip.create(Component.literal("Settings & Preferences"))).build());
 
                 this.addRenderableWidget(Button.builder(Component.literal("Leave"), b -> {
                     ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.LEAVE_JAM));
@@ -208,37 +210,53 @@ public class JamScreen extends Screen {
                         .bounds(midX + 60, 108, 120, 20).build());
             }
 
-            case SETTINGS_PERMS -> {
-                if (ClientJamManager.isOwner()) {
-                    privacyButton = Button.builder(Component.literal("Privacy: " + (ClientJamManager.isPrivate() ? "§cPrivate" : "§aPublic")), b ->
-                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_PRIVACY))
-                    ).bounds(midX - 180, 50, 175, 20).tooltip(Tooltip.create(Component.literal("Toggle whether this Jam appears in the Public directory."))).build();
-                    this.addRenderableWidget(privacyButton);
-                }
+            case SETTINGS -> {
+                // Client HUD Settings (Available to all)
+                this.overlayToggleBtn = Button.builder(Component.literal("HUD Overlay: " + (ClientJamConfig.isOverlayEnabled() ? "§aON" : "§cOFF")), b -> {
+                    ClientJamConfig.toggleOverlay();
+                    b.setMessage(Component.literal("HUD Overlay: " + (ClientJamConfig.isOverlayEnabled() ? "§aON" : "§cOFF")));
+                }).bounds(midX - 180, 48, 175, 20).tooltip(Tooltip.create(Component.literal("Toggle whether the in-game song notification overlay appears."))).build();
+                this.addRenderableWidget(overlayToggleBtn);
 
-                policyButton = Button.builder(Component.literal("Policy: §e" + ClientJamManager.getEditPolicy().getDisplayName()), b ->
-                                ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SET_POLICY))
-                        ).bounds(midX + (ClientJamManager.isOwner() ? 5 : -180), 50, ClientJamManager.isOwner() ? 175 : 360, 20)
-                        .tooltip(Tooltip.create(Component.literal("Cycle who can edit: Owner & Admins, Collaborators, or Open to All."))).build();
-                this.addRenderableWidget(policyButton);
+                this.overlayCornerBtn = Button.builder(Component.literal("HUD Position: §e" + ClientJamConfig.getOverlayCorner().getDisplayName()), b -> {
+                    ClientJamConfig.cycleOverlayCorner();
+                    b.setMessage(Component.literal("HUD Position: §e" + ClientJamConfig.getOverlayCorner().getDisplayName()));
+                }).bounds(midX + 5, 48, 175, 20).tooltip(Tooltip.create(Component.literal("Cycle screen corner: Top-Right, Top-Left, Bottom-Right, Bottom-Left."))).build();
+                this.addRenderableWidget(overlayCornerBtn);
 
-                this.addRenderableWidget(Button.builder(Component.literal("👥 Manage Member Roles"), b -> switchView(View.ROLES))
-                        .bounds(midX - 180, 78, 175, 20).build());
+                // Room Settings (Host / Admin only)
+                if (ClientJamManager.canManage()) {
+                    if (ClientJamManager.isOwner()) {
+                        privacyButton = Button.builder(Component.literal("Privacy: " + (ClientJamManager.isPrivate() ? "§cPrivate" : "§aPublic")), b ->
+                                ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_PRIVACY))
+                        ).bounds(midX - 180, 80, 175, 20).tooltip(Tooltip.create(Component.literal("Toggle whether this Jam appears in the Public directory."))).build();
+                        this.addRenderableWidget(privacyButton);
+                    }
 
-                if (ClientJamManager.isOwner()) {
-                    this.addRenderableWidget(Button.builder(Component.literal("§cDelete Jam"), b -> {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                                C2SJamActionPacket.Action.DELETE_JAM, ClientJamManager.getJamId()));
-                        switchView(View.DIRECTORY_PUBLIC);
-                    }).bounds(midX + 5, 78, 175, 20).build());
+                    policyButton = Button.builder(Component.literal("Policy: §e" + ClientJamManager.getEditPolicy().getDisplayName()), b ->
+                                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SET_POLICY))
+                            ).bounds(midX + (ClientJamManager.isOwner() ? 5 : -180), 80, ClientJamManager.isOwner() ? 175 : 360, 20)
+                            .tooltip(Tooltip.create(Component.literal("Cycle who can edit: Owner & Admins, Collaborators, or Open to All."))).build();
+                    this.addRenderableWidget(policyButton);
+
+                    this.addRenderableWidget(Button.builder(Component.literal("👥 Manage Member Roles"), b -> switchView(View.ROLES))
+                            .bounds(midX - 180, 108, 175, 20).build());
+
+                    if (ClientJamManager.isOwner()) {
+                        this.addRenderableWidget(Button.builder(Component.literal("§cDelete Jam"), b -> {
+                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                                    C2SJamActionPacket.Action.DELETE_JAM, ClientJamManager.getJamId()));
+                            switchView(View.DIRECTORY_PUBLIC);
+                        }).bounds(midX + 5, 108, 175, 20).build());
+                    }
                 }
 
                 this.addRenderableWidget(Button.builder(Component.literal("← Back to Player"), b -> switchView(View.PLAYER))
-                        .bounds(midX - 180, 106, 360, 20).build());
+                        .bounds(midX - 180, 136, 360, 20).build());
             }
 
             case ROLES -> {
-                this.addRenderableWidget(Button.builder(Component.literal("← Back"), b -> switchView(View.SETTINGS_PERMS))
+                this.addRenderableWidget(Button.builder(Component.literal("← Back"), b -> switchView(View.SETTINGS))
                         .bounds(midX - 180, 32, 55, 18).build());
 
                 this.addMemberField = new EditBox(this.font, midX - 120, 32, 210, 18, Component.literal("Username"));
@@ -517,7 +535,6 @@ public class JamScreen extends Screen {
                 graphics.drawString(this.font, badge + "§6" + ClientJamManager.getJamName() + " §7(Host: §f" + ClientJamManager.getOwnerName() + "§7)", midX - 180, 52, 0xFFFFFF);
 
                 String currentTitle = ClientJamManager.getCurrentTrackTitle().isEmpty() ? "None" : ClientJamManager.getCurrentTrackTitle();
-                String currentUrl = ClientJamManager.getCurrentTrackUrl();
                 graphics.drawString(this.font, "Now: §e" + currentTitle, midX - 180, 63, 0xFFFF55);
 
                 int currentIdx = ClientJamManager.getCurrentTrackIndex();
@@ -577,6 +594,13 @@ public class JamScreen extends Screen {
                         graphics.fill(midX + 130, itemY, midX + 155, itemY + 19, 0x40AA0000);
                         graphics.drawCenteredString(this.font, "§c✕", midX + 142, itemY + 5, 0xFF5555);
                     }
+                }
+            }
+
+            case SETTINGS -> {
+                graphics.drawString(this.font, "§6Settings & Preferences", midX - 180, 34, 0xFFFFFF);
+                if (ClientJamManager.canManage()) {
+                    graphics.drawString(this.font, "§7Room Administration:", midX - 180, 68, 0xAAAAAA);
                 }
             }
 

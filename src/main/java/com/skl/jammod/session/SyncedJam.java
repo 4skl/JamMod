@@ -4,7 +4,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SyncedJam {
-    public enum RepeatMode { OFF, ALL, ONE }
+    public enum RepeatMode {OFF, ALL, ONE}
 
     public enum Role {
         OWNER("Host", "§c"),
@@ -20,11 +20,17 @@ public class SyncedJam {
             this.color = color;
         }
 
-        public String getDisplayName() { return displayName; }
-        public String getColor() { return color; }
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public String getColor() {
+            return color;
+        }
     }
 
-    public record MemberInfo(UUID uuid, String name, Role role) {}
+    public record MemberInfo(UUID uuid, String name, Role role) {
+    }
 
     private final String id;
     private String name;
@@ -40,7 +46,7 @@ public class SyncedJam {
     private RepeatMode repeatMode = RepeatMode.OFF;
     private boolean shuffle = false;
 
-    // Runtime state (Gson-safe)
+    // Runtime state (Gson-safe, re-initialized on demand)
     private transient Set<UUID> listeners;
     private transient int currentTrackIndex = 0;
     private transient long startTimestamp = 0;
@@ -74,25 +80,81 @@ public class SyncedJam {
         }
     }
 
-    public String getId() { return id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public UUID getOwnerId() { return ownerId; }
-    public String getOwnerName() { return ownerName; }
-    public boolean isPrivate() { return isPrivate; }
-    public void setPrivate(boolean isPrivate) { this.isPrivate = isPrivate; }
-    public JamEditPolicy getEditPolicy() { ensureRuntimeState(); return editPolicy; }
-    public void setEditPolicy(JamEditPolicy policy) { this.editPolicy = policy; }
-    public RepeatMode getRepeatMode() { ensureRuntimeState(); return repeatMode; }
-    public void setRepeatMode(RepeatMode mode) { this.repeatMode = mode; }
-    public boolean isShuffle() { return shuffle; }
-    public void setShuffle(boolean shuffle) { this.shuffle = shuffle; }
+    public String getId() {
+        return id;
+    }
 
-    public synchronized List<JamTrack> getTracks() { ensureRuntimeState(); return Collections.unmodifiableList(new ArrayList<>(tracks)); }
-    public synchronized Set<UUID> getListeners() { ensureRuntimeState(); return Collections.unmodifiableSet(new HashSet<>(listeners)); }
-    public synchronized int getCurrentTrackIndex() { return currentTrackIndex; }
-    public synchronized long getStartTimestamp() { return startTimestamp; }
-    public synchronized boolean isPlaying() { return playing; }
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public UUID getOwnerId() {
+        return ownerId;
+    }
+
+    public String getOwnerName() {
+        return ownerName;
+    }
+
+    public boolean isPrivate() {
+        return isPrivate;
+    }
+
+    public void setPrivate(boolean isPrivate) {
+        this.isPrivate = isPrivate;
+    }
+
+    public JamEditPolicy getEditPolicy() {
+        ensureRuntimeState();
+        return editPolicy;
+    }
+
+    public void setEditPolicy(JamEditPolicy policy) {
+        this.editPolicy = policy;
+    }
+
+    public RepeatMode getRepeatMode() {
+        ensureRuntimeState();
+        return repeatMode;
+    }
+
+    public void setRepeatMode(RepeatMode mode) {
+        this.repeatMode = mode;
+    }
+
+    public boolean isShuffle() {
+        return shuffle;
+    }
+
+    public void setShuffle(boolean shuffle) {
+        this.shuffle = shuffle;
+    }
+
+    public synchronized List<JamTrack> getTracks() {
+        ensureRuntimeState();
+        return Collections.unmodifiableList(new ArrayList<>(tracks));
+    }
+
+    public synchronized Set<UUID> getListeners() {
+        ensureRuntimeState();
+        return Collections.unmodifiableSet(new HashSet<>(listeners));
+    }
+
+    public synchronized int getCurrentTrackIndex() {
+        return currentTrackIndex;
+    }
+
+    public synchronized long getStartTimestamp() {
+        return startTimestamp;
+    }
+
+    public synchronized boolean isPlaying() {
+        return playing;
+    }
 
     public synchronized JamTrack getCurrentTrack() {
         ensureRuntimeState();
@@ -128,17 +190,33 @@ public class SyncedJam {
         }
     }
 
-    public synchronized void cycleRole(UUID player) {
+    public synchronized boolean canManageMember(UUID actor, UUID target) {
         ensureRuntimeState();
-        if (ownerId.equals(player)) return;
-        Role current = getRole(player);
-        Role next = switch (current) {
-            case LISTENER -> Role.EDITOR;
-            case EDITOR -> Role.ADMIN;
-            case ADMIN -> Role.LISTENER;
-            default -> Role.LISTENER;
-        };
-        setRole(player, memberNames.get(player), next);
+        if (target.equals(ownerId)) return false;
+        if (isOwner(actor)) return true;
+        if (isAdmin(actor)) {
+            Role targetRole = getRole(target);
+            return targetRole == Role.EDITOR || targetRole == Role.LISTENER;
+        }
+        return false;
+    }
+
+    public synchronized void cycleRole(UUID actor, UUID target) {
+        ensureRuntimeState();
+        if (!canManageMember(actor, target)) return;
+
+        Role current = getRole(target);
+        Role next;
+        if (isOwner(actor)) {
+            next = switch (current) {
+                case LISTENER -> Role.EDITOR;
+                case EDITOR -> Role.ADMIN;
+                default -> Role.LISTENER;
+            };
+        } else {
+            next = (current == Role.EDITOR) ? Role.LISTENER : Role.EDITOR;
+        }
+        setRole(target, memberNames.get(target), next);
     }
 
     public synchronized void removeMember(UUID player) {
@@ -150,9 +228,17 @@ public class SyncedJam {
         listeners.remove(player);
     }
 
-    public synchronized boolean isOwner(UUID player) { return ownerId.equals(player); }
-    public synchronized boolean isAdmin(UUID player) { return isOwner(player) || getRole(player) == Role.ADMIN; }
-    public synchronized boolean canManage(UUID player) { return isAdmin(player); }
+    public synchronized boolean isOwner(UUID player) {
+        return ownerId.equals(player);
+    }
+
+    public synchronized boolean isAdmin(UUID player) {
+        return isOwner(player) || getRole(player) == Role.ADMIN;
+    }
+
+    public synchronized boolean canManage(UUID player) {
+        return isAdmin(player);
+    }
 
     public synchronized boolean canEdit(UUID player) {
         ensureRuntimeState();
@@ -233,7 +319,10 @@ public class SyncedJam {
 
     public synchronized void playTrackAt(int index) {
         ensureRuntimeState();
-        if (tracks.isEmpty()) { stop(); return; }
+        if (tracks.isEmpty()) {
+            stop();
+            return;
+        }
         this.currentTrackIndex = Math.max(0, Math.min(index, tracks.size() - 1));
         this.startTimestamp = System.currentTimeMillis();
         this.pausedElapsedMs = 0;
@@ -242,7 +331,8 @@ public class SyncedJam {
 
     public synchronized void togglePlay() {
         if (tracks.isEmpty()) return;
-        if (this.playing) pause(); else resume();
+        if (this.playing) pause();
+        else resume();
     }
 
     public synchronized void pause() {
@@ -266,11 +356,19 @@ public class SyncedJam {
         if (now - lastActionTime < 500) return;
         lastActionTime = now;
 
-        if (tracks.isEmpty()) { stop(); return; }
-        if (repeatMode == RepeatMode.ONE) { playTrackAt(currentTrackIndex); return; }
+        if (tracks.isEmpty()) {
+            stop();
+            return;
+        }
+        if (repeatMode == RepeatMode.ONE) {
+            playTrackAt(currentTrackIndex);
+            return;
+        }
         if (shuffle && tracks.size() > 1) {
             int next;
-            do { next = new Random().nextInt(tracks.size()); } while (next == currentTrackIndex);
+            do {
+                next = new Random().nextInt(tracks.size());
+            } while (next == currentTrackIndex);
             playTrackAt(next);
             return;
         }
