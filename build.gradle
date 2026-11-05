@@ -1,192 +1,24 @@
 plugins {
-    id 'eclipse'
-    id 'idea'
-    id 'maven-publish'
-    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id 'base'
 }
 
-version = mod_version
-group = mod_group_id
+subprojects {
+    apply plugin: 'java'
 
-base {
-    archivesName = mod_id
-}
+    group = 'com.skl'
+    version = '1.0.0'
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
-
-println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
-
-minecraft {
-    mappings channel: mapping_channel, version: mapping_version
-    copyIdeResources = true
-
-    runs {
-        configureEach {
-            workingDirectory project.file('run')
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'debug'
-
-            mods {
-                "${mod_id}" {
-                    source sourceSets.main
-                }
-            }
-        }
-
-        client {
-            property 'forge.enabledGameTestNamespaces', mod_id
-        }
-
-        server {
-            property 'forge.enabledGameTestNamespaces', mod_id
-            args '--nogui'
-        }
-    }
-}
-
-sourceSets.main.resources { srcDir 'src/generated/resources' }
-
-repositories {
-    mavenCentral()
-    maven { url 'https://maven.lavalink.dev/releases' }
-    maven { url 'https://jitpack.io' }
-}
-
-configurations {
-    // Only fetch the exact 3 jars without unpacking any 3rd party dependencies
-    lavaplayerMerge {
-        transitive = false
-    }
-    // Libraries to shade into the final distributable mod jar
-    bundledJarLibs {
-        transitive = true
-        exclude group: 'org.slf4j'
-        exclude group: 'commons-io'
-        exclude group: 'commons-logging'
-        exclude group: 'org.jetbrains'
-    }
-}
-
-dependencies {
-    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
-
-    // 1. Only merge lavaplayer core, natives, and lava-common (no transitive jars!)
-    lavaplayerMerge 'dev.arbjerg:lavaplayer:2.2.2'
-    lavaplayerMerge 'dev.arbjerg:lavaplayer-natives:2.2.2'
-    lavaplayerMerge 'dev.arbjerg:lava-common:2.2.2'
-
-    // 2. Runtime libraries resolved as individual jars by Forge
-    minecraftLibrary('org.apache.httpcomponents:httpclient:4.5.14') {
-        exclude group: 'commons-logging', module: 'commons-logging'
-    }
-    minecraftLibrary 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
-    minecraftLibrary 'org.jsoup:jsoup:1.17.2'
-    minecraftLibrary 'net.iharder:base64:2.3.9'
-    minecraftLibrary('dev.lavalink.youtube:common:1.18.2') {
-        exclude group: 'commons-logging', module: 'commons-logging'
-    }
-
-    // Mirror dependencies for the final shaded production jar
-    bundledJarLibs('org.apache.httpcomponents:httpclient:4.5.14') {
-        exclude group: 'commons-logging', module: 'commons-logging'
-    }
-    bundledJarLibs 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
-    bundledJarLibs 'org.jsoup:jsoup:1.17.2'
-    bundledJarLibs 'net.iharder:base64:2.3.9'
-    bundledJarLibs('dev.lavalink.youtube:common:1.18.2') {
-        exclude group: 'commons-logging', module: 'commons-logging'
-    }
-}
-
-// Merge Lavaplayer core + natives into one jar so ConnectorNativeLibLoader finds /natives/*
-def bundleLavaplayer = tasks.register('bundleLavaplayer', Jar) {
-    archiveClassifier = 'bundle'
-    archiveBaseName = 'lavaplayer-all'
-    destinationDirectory = file("$buildDir/bundled-libs")
-    from {
-        configurations.lavaplayerMerge.collect { zipTree(it) }
-    }
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
-tasks.named('compileJava') {
-    dependsOn bundleLavaplayer
-}
-
-dependencies {
-    // Expose the unified bundle as a single module to Forge
-    minecraftLibrary files(bundleLavaplayer.map { it.archiveFile })
-}
-
-tasks.named('processResources', ProcessResources).configure {
-    var replaceProperties = [
-            minecraft_version      : minecraft_version,
-            minecraft_version_range: minecraft_version_range,
-            forge_version          : forge_version,
-            forge_version_range    : forge_version_range,
-            loader_version_range   : loader_version_range,
-            mod_id                 : mod_id,
-            mod_name               : mod_name,
-            mod_license            : mod_license,
-            mod_version            : mod_version,
-            mod_authors            : mod_authors,
-            mod_description        : mod_description,
-    ]
-    inputs.properties replaceProperties
-
-    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
-        expand replaceProperties + [project: project]
-    }
-}
-
-// Package the bundled engine and libraries inside the final mod jar
-tasks.named('jar', Jar).configure {
-    from {
-        zipTree(bundleLavaplayer.get().archiveFile)
-    }
-    from {
-        configurations.bundledJarLibs.collect { zipTree(it) }
-    }
-    // Safeguard: Never bundle Minecraft/Forge-provided packages into the jar
-    exclude 'org/slf4j/**'
-    exclude 'org/jetbrains/**'
-    exclude 'org/intellij/**'
-    exclude 'org/apache/commons/io/**'
-    exclude 'org/apache/commons/logging/**'
-    exclude 'META-INF/maven/**'
-    exclude 'META-INF/INDEX.LIST'
-    exclude 'META-INF/*.SF'
-    exclude 'META-INF/*.DSA'
-    exclude 'META-INF/*.RSA'
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
-    manifest {
-        attributes([
-                'Specification-Title'     : mod_id,
-                'Specification-Vendor'    : mod_authors,
-                'Specification-Version'   : '1',
-                'Implementation-Title'    : project.name,
-                'Implementation-Version'  : project.jar.archiveVersion,
-                'Implementation-Vendor'   : mod_authors,
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
-    }
-    finalizedBy 'reobfJar'
-}
-
-publishing {
-    publications {
-        register('mavenJava', MavenPublication) {
-            artifact tasks.named('jar')
-        }
-    }
     repositories {
+        mavenCentral()
         maven {
-            url "file://${project.projectDir}/mcmodsrepo"
+            name = 'NeoForged'
+            url = 'https://maven.neoforged.net/releases'
         }
+        maven {
+            name = 'Minecraft'
+            url = 'https://libraries.minecraft.net/'
+        }
+        maven { url = 'https://maven.lavalink.dev/releases' }
+        maven { url = 'https://jitpack.io' }
     }
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
 }

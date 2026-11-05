@@ -1,0 +1,58 @@
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+sourceSets {
+    main {
+        java {
+            srcDir project(':common').file('src/main/java')
+        }
+    }
+}
+
+minecraft {
+    mappings channel: 'official', version: '1.19.2'
+    copyIdeResources = true
+
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods { jammod { source sourceSets.main } }
+        }
+        client {}
+        server { args '--nogui' }
+    }
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.19.2-43.3.0'
+
+    minecraftLibrary 'org.apache.httpcomponents:httpclient:4.5.14'
+    minecraftLibrary 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    minecraftLibrary 'org.jsoup:jsoup:1.17.2'
+    minecraftLibrary 'net.iharder:base64:2.3.9'
+    minecraftLibrary 'dev.lavalink.youtube:common:1.18.2'
+    minecraftLibrary 'dev.arbjerg:lavaplayer:2.2.2'
+    minecraftLibrary 'dev.arbjerg:lavaplayer-natives:2.2.2'
+    minecraftLibrary 'dev.arbjerg:lava-common:2.2.2'
+}
+
+jar {
+    manifest {
+        attributes([
+            'Specification-Title'     : 'jammod',
+            'Specification-Vendor'    : '4skl',
+            'Specification-Version'   : '1',
+            'Implementation-Title'    : project.name,
+            'Implementation-Version'  : project.version,
+            'Implementation-Vendor'   : '4skl',
+            'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}

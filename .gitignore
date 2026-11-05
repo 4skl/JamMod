@@ -1,25 +1,37 @@
-# eclipse
-bin
-*.launch
-.settings
-.metadata
-.classpath
-.project
+# Gradle builds and caches
+.gradle/
+build/
+**/build/
+bin/
+**/bin/
 
-# idea
-out
+# Multi-version distribution artifacts
+dist/
+
+# Script backup folders
+.backup_*
+
+# Minecraft run directories (runtime logs, configs, world saves)
+run/
+**/run/
+runClient/
+**/runClient/
+runServer/
+**/runServer/
+
+# IDE configurations
+.idea/
+*.iml
 *.ipr
 *.iws
-*.iml
-.idea
+.project
+.classpath
+.settings/
+.vscode/
 
-# gradle
-build
-.gradle
-
-# other
-eclipse
-run
-
-# Files from Forge MDK
-forge*changelog.txt
+# System files
+.DS_Store
+Thumbs.db
+crash-*.txt
+**/crash-*.txt
+hs_err_pid*.log
