@@ -1,43 +1,30 @@
 package com.skl.jammod.network;
 
+import com.skl.jammod.JamMod;
 import com.skl.jammod.client.ClientJamManager;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.function.Supplier;
 
-public class S2CSyncJamListPacket {
+public class S2CSyncJamListPacket implements CustomPacketPayload {
+    public static final ResourceLocation ID = new ResourceLocation(JamMod.MODID + ":sync_jam_list");
+
     public record JamSummary(String id, String name, UUID ownerId, String ownerName,
                              boolean isPrivate, int trackCount, int listeners,
                              boolean playing, String currentTrack) {}
 
-    private final List<JamSummary> summaries;
+    public final List<JamSummary> summaries;
 
     public S2CSyncJamListPacket(List<JamSummary> summaries) {
         this.summaries = summaries != null ? summaries : new ArrayList<>();
     }
 
-    public static void encode(S2CSyncJamListPacket msg, FriendlyByteBuf buf) {
-        buf.writeInt(msg.summaries.size());
-        for (JamSummary s : msg.summaries) {
-            buf.writeUtf(s.id());
-            buf.writeUtf(s.name());
-            buf.writeUUID(s.ownerId());
-            buf.writeUtf(s.ownerName());
-            buf.writeBoolean(s.isPrivate());
-            buf.writeInt(s.trackCount());
-            buf.writeInt(s.listeners());
-            buf.writeBoolean(s.playing());
-            buf.writeUtf(s.currentTrack());
-        }
-    }
-
-    public static S2CSyncJamListPacket decode(FriendlyByteBuf buf) {
+    public S2CSyncJamListPacket(FriendlyByteBuf buf) {
         int size = buf.readInt();
         List<JamSummary> list = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
@@ -53,15 +40,31 @@ public class S2CSyncJamListPacket {
                     buf.readUtf()
             ));
         }
-        return new S2CSyncJamListPacket(list);
+        this.summaries = list;
     }
 
-    public static void handle(S2CSyncJamListPacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() ->
-                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-                        ClientJamManager.setDirectory(msg.summaries)
-                )
-        );
-        ctx.get().setPacketHandled(true);
+    @Override
+    public ResourceLocation id() {
+        return ID;
+    }
+
+    @Override
+    public void write(FriendlyByteBuf buf) {
+        buf.writeInt(this.summaries.size());
+        for (JamSummary s : this.summaries) {
+            buf.writeUtf(s.id());
+            buf.writeUtf(s.name());
+            buf.writeUUID(s.ownerId());
+            buf.writeUtf(s.ownerName());
+            buf.writeBoolean(s.isPrivate());
+            buf.writeInt(s.trackCount());
+            buf.writeInt(s.listeners());
+            buf.writeBoolean(s.playing());
+            buf.writeUtf(s.currentTrack());
+        }
+    }
+
+    public static void handle(S2CSyncJamListPacket msg, IPayloadContext ctx) {
+        ctx.workHandler().execute(() -> ClientJamManager.setDirectory(msg.summaries));
     }
 }

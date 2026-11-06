@@ -152,7 +152,7 @@ public class JamCommands {
 
                 .then(Commands.literal("status").executes(ctx -> showStatus(ctx.getSource())))
                 .then(Commands.literal("help").executes(ctx -> {
-                    ctx.getSource().sendSuccess(() -> Component.literal("§6=== JamMod Commands ===\n")
+                    ctx.getSource().sendSuccess(Component.literal("§6=== JamMod Commands ===\n")
                             .append(clickable("/jam create <name>", "/jam create ", "Create a new Jam room")).append("\n")
                             .append(clickable("/jam join <name>", "/jam join ", "Join an existing Jam")).append("\n")
                             .append(clickable("/jam leave", "/jam leave", "Leave current Jam")).append("\n")
@@ -178,7 +178,7 @@ public class JamCommands {
         ServerJamRegistry.joinJam(jam.getId(), player.getUUID(), pName);
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
         ServerJamRegistry.broadcastDirectory(source.getServer());
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aCreated and joined " + (isPrivate ? "§c[Private] " : "§a[Public] ") + "§f" + jam.getName()), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §aCreated and joined " + (isPrivate ? "§c[Private] " : "§a[Public] ") + "§f" + jam.getName()), false);
         return 1;
     }
 
@@ -190,7 +190,7 @@ public class JamCommands {
                 SyncedJam jam = ServerJamRegistry.getJamByPlayer(player.getUUID());
                 ServerJamRegistry.broadcastJamState(source.getServer(), jam);
                 ServerJamRegistry.broadcastDirectory(source.getServer());
-                source.sendSuccess(() -> Component.literal("§6[JamMod] §aJoined §f" + jam.getName() + " §7(" + jam.getListeners().size() + " listeners)"), false);
+                source.sendSuccess(Component.literal("§6[JamMod] §aJoined §f" + jam.getName() + " §7(" + jam.getListeners().size() + " listeners)"), false);
                 return 1;
             } else {
                 source.sendFailure(Component.literal("§cCould not join Jam: '" + query + "'. It may be private or nonexistent."));
@@ -207,12 +207,13 @@ public class JamCommands {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
         SyncedJam old = ServerJamRegistry.leaveCurrentJam(player.getUUID());
-        ModNetworking.sendToPlayer(player, new S2CSyncJamPacket(
-                "", "", "", false, JamEditPolicy.OPEN, SyncedJam.RepeatMode.OFF, false,
-                "", "", 0, 0, false, new ArrayList<>(), new ArrayList<>(), 0, false, false, false));
+        ModNetworking.CHANNEL.sendTo(new S2CSyncJamPacket(
+                        "", "", "", false, JamEditPolicy.OPEN, SyncedJam.RepeatMode.OFF, false,
+                        "", "", 0, 0, false, new ArrayList<>(), new ArrayList<>(), 0, false, false, false),
+                player.connection.connection, net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT);
         if (old != null) ServerJamRegistry.broadcastJamState(source.getServer(), old);
         ServerJamRegistry.broadcastDirectory(source.getServer());
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §eLeft jam session."), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §eLeft jam session."), false);
         return 1;
     }
 
@@ -221,7 +222,7 @@ public class JamCommands {
         if (player == null) return 0;
         if (ServerJamRegistry.deleteJam(query, player.getUUID())) {
             ServerJamRegistry.broadcastDirectory(source.getServer());
-            source.sendSuccess(() -> Component.literal("§6[JamMod] §aJam deleted."), false);
+            source.sendSuccess(Component.literal("§6[JamMod] §aJam deleted."), false);
             return 1;
         } else {
             source.sendFailure(Component.literal("§cCould not delete Jam. Ensure you are the host."));
@@ -234,15 +235,15 @@ public class JamCommands {
         if (player == null) return 0;
         List<SyncedJam> list = ServerJamRegistry.getVisibleJams(player.getUUID());
         if (list.isEmpty()) {
-            source.sendSuccess(() -> Component.literal("§7No accessible jams found."), false);
+            source.sendSuccess(Component.literal("§7No accessible jams found."), false);
             return 1;
         }
-        source.sendSuccess(() -> Component.literal("§6=== Accessible Jams (" + list.size() + ") ==="), false);
+        source.sendSuccess(Component.literal("§6=== Accessible Jams (" + list.size() + ") ==="), false);
         for (SyncedJam j : list) {
             String tag = j.isPrivate() ? "§c[Private]" : "§a[Public]";
             MutableComponent line = Component.literal(tag + " §f" + j.getName() + " §7(by " + j.getOwnerName() + ") §8- " + j.getTracks().size() + " songs ")
                     .append(clickable("§a[Join]", "/jam join " + j.getName(), "Click to join " + j.getName()));
-            source.sendSuccess(() -> line, false);
+            source.sendSuccess(line, false);
         }
         return 1;
     }
@@ -263,7 +264,7 @@ public class JamCommands {
         ServerJamRegistry.save();
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
         ServerJamRegistry.broadcastDirectory(source.getServer());
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aTrack added to §f" + jam.getName()), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §aTrack added to §f" + jam.getName()), false);
         return 1;
     }
 
@@ -292,7 +293,7 @@ public class JamCommands {
         }
         jam.pause();
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §ePaused."), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §ePaused."), false);
         return 1;
     }
 
@@ -307,7 +308,7 @@ public class JamCommands {
         }
         jam.resume();
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aResumed."), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §aResumed."), false);
         return 1;
     }
 
@@ -322,7 +323,7 @@ public class JamCommands {
         }
         jam.skip();
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §eSkipped to next track."), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §eSkipped to next track."), false);
         return 1;
     }
 
@@ -337,7 +338,7 @@ public class JamCommands {
         }
         jam.previous();
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §ePrevious track."), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §ePrevious track."), false);
         return 1;
     }
 
@@ -357,7 +358,7 @@ public class JamCommands {
         }
         jam.playTrackAt(idx);
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aJumped to track #" + oneBasedIndex), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §aJumped to track #" + oneBasedIndex), false);
         return 1;
     }
 
@@ -379,7 +380,7 @@ public class JamCommands {
         jam.moveTrack(fromIdx, toIdx);
         ServerJamRegistry.save();
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aMoved track #" + from + " to #" + to), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §aMoved track #" + from + " to #" + to), false);
         return 1;
     }
 
@@ -401,7 +402,7 @@ public class JamCommands {
         ServerJamRegistry.save();
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
         ServerJamRegistry.broadcastDirectory(source.getServer());
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aRemoved track #" + oneBasedIndex), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §aRemoved track #" + oneBasedIndex), false);
         return 1;
     }
 
@@ -416,7 +417,7 @@ public class JamCommands {
         }
         jam.seek((long) seconds * 1000L);
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aSeeked to " + (seconds / 60) + "m " + (seconds % 60) + "s"), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §aSeeked to " + (seconds / 60) + "m " + (seconds % 60) + "s"), false);
         return 1;
     }
 
@@ -433,7 +434,7 @@ public class JamCommands {
         jam.setRepeatMode(next);
         ServerJamRegistry.save();
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aRepeat mode: §e" + next.name()), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §aRepeat mode: §e" + next.name()), false);
         return 1;
     }
 
@@ -449,23 +450,23 @@ public class JamCommands {
         jam.setShuffle(!jam.isShuffle());
         ServerJamRegistry.save();
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aShuffle mode: " + (jam.isShuffle() ? "§aON" : "§cOFF")), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §aShuffle mode: " + (jam.isShuffle() ? "§aON" : "§cOFF")), false);
         return 1;
     }
 
     private static int setVolume(CommandSourceStack source, int volume) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
-        ModNetworking.sendToPlayer(player, new S2CSetLocalVolumePacket(volume));
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aMusic volume set to " + volume + "%"), false);
+        ModNetworking.CHANNEL.sendTo(new S2CSetLocalVolumePacket(volume), player.connection.connection, net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT);
+        source.sendSuccess(Component.literal("§6[JamMod] §aMusic volume set to " + volume + "%"), false);
         return 1;
     }
 
     private static int toggleOverlay(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
-        ModNetworking.sendToPlayer(player, S2CSetOverlayConfigPacket.toggle());
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aToggled HUD overlay."), false);
+        ModNetworking.CHANNEL.sendTo(S2CSetOverlayConfigPacket.toggle(), player.connection.connection, net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT);
+        source.sendSuccess(Component.literal("§6[JamMod] §aToggled HUD overlay."), false);
         return 1;
     }
 
@@ -473,8 +474,8 @@ public class JamCommands {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
         OverlayCorner corner = OverlayCorner.fromString(cornerName);
-        ModNetworking.sendToPlayer(player, S2CSetOverlayConfigPacket.corner(corner));
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aHUD overlay position set to §e" + corner.getDisplayName()), false);
+        ModNetworking.CHANNEL.sendTo(S2CSetOverlayConfigPacket.corner(corner), player.connection.connection, net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT);
+        source.sendSuccess(Component.literal("§6[JamMod] §aHUD overlay position set to §e" + corner.getDisplayName()), false);
         return 1;
     }
 
@@ -490,7 +491,7 @@ public class JamCommands {
         jam.setEditPolicy(jam.getEditPolicy().next());
         ServerJamRegistry.save();
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aEdit policy changed to: §e" + jam.getEditPolicy().getDisplayName()), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §aEdit policy changed to: §e" + jam.getEditPolicy().getDisplayName()), false);
         return 1;
     }
 
@@ -522,7 +523,7 @@ public class JamCommands {
         jam.setRole(target.getUUID(), target.getName().getString(), role);
         ServerJamRegistry.save();
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aSet §f" + target.getName().getString() + "§a's role to " + role.getColor() + role.getDisplayName()), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §aSet §f" + target.getName().getString() + "§a's role to " + role.getColor() + role.getDisplayName()), false);
         target.sendSystemMessage(Component.literal("§6[JamMod] §aYour role in §f" + jam.getName() + " §awas updated to " + role.getColor() + role.getDisplayName()));
         return 1;
     }
@@ -540,7 +541,7 @@ public class JamCommands {
         ServerJamRegistry.save();
         ServerJamRegistry.broadcastJamState(source.getServer(), jam);
         ServerJamRegistry.broadcastDirectory(source.getServer());
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aRoom privacy set to: " + (jam.isPrivate() ? "§cPrivate" : "§aPublic")), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §aRoom privacy set to: " + (jam.isPrivate() ? "§cPrivate" : "§aPublic")), false);
         return 1;
     }
 
@@ -562,7 +563,7 @@ public class JamCommands {
         jam.invitePlayer(invited.getUUID(), invited.getName().getString());
         ServerJamRegistry.save();
 
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §aInvited §f" + invited.getName().getString() + " §ato §f" + jam.getName()), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §aInvited §f" + invited.getName().getString() + " §ato §f" + jam.getName()), false);
         invited.sendSystemMessage(Component.literal("§6[JamMod] §f" + player.getName().getString() + " §ainvited you to Jam: §e" + jam.getName() + " ")
                 .append(clickable("§a§l[Click to Join]", "/jam join " + jam.getName(), "Join " + jam.getName())));
         return 1;
@@ -572,7 +573,7 @@ public class JamCommands {
         ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
         boolean blocked = AntiSpamManager.toggleInvitesBlocked(player.getUUID());
-        source.sendSuccess(() -> Component.literal("§6[JamMod] §eJam invitations are now " + (blocked ? "§cBLOCKED" : "§aALLOWED")), false);
+        source.sendSuccess(Component.literal("§6[JamMod] §eJam invitations are now " + (blocked ? "§cBLOCKED" : "§aALLOWED")), false);
         return 1;
     }
 
@@ -581,19 +582,19 @@ public class JamCommands {
         if (player == null) return 0;
         SyncedJam jam = ServerJamRegistry.getJamByPlayer(player.getUUID());
         if (jam == null) {
-            source.sendSuccess(() -> Component.literal("§7Not in any active Jam. Use §e/jam list §7to find one."), false);
+            source.sendSuccess(Component.literal("§7Not in any active Jam. Use §e/jam list §7to find one."), false);
             return 1;
         }
-        source.sendSuccess(() -> Component.literal("§6=== Jam: §f" + jam.getName() + " " + (jam.isPrivate() ? "§c[Private]" : "§a[Public]") + " §6==="), false);
-        source.sendSuccess(() -> Component.literal("§7Host: §f" + jam.getOwnerName() + " | §a" + jam.getListeners().size() + " listeners"), false);
-        source.sendSuccess(() -> Component.literal("§7Your Role: " + jam.getRole(player.getUUID()).getColor() + jam.getRole(player.getUUID()).getDisplayName() +
+        source.sendSuccess(Component.literal("§6=== Jam: §f" + jam.getName() + " " + (jam.isPrivate() ? "§c[Private]" : "§a[Public]") + " §6==="), false);
+        source.sendSuccess(Component.literal("§7Host: §f" + jam.getOwnerName() + " | §a" + jam.getListeners().size() + " listeners"), false);
+        source.sendSuccess(Component.literal("§7Your Role: " + jam.getRole(player.getUUID()).getColor() + jam.getRole(player.getUUID()).getDisplayName() +
                 " | Policy: §b" + jam.getEditPolicy().getDisplayName()), false);
 
         JamTrack cur = jam.getCurrentTrack();
         if (cur != null) {
-            source.sendSuccess(() -> Component.literal("§7Now Playing: §e" + cur.getTitle()), false);
+            source.sendSuccess(Component.literal("§7Now Playing: §e" + cur.getTitle()), false);
         } else {
-            source.sendSuccess(() -> Component.literal("§7Now Playing: §8(None)"), false);
+            source.sendSuccess(Component.literal("§7Now Playing: §8(None)"), false);
         }
         return 1;
     }

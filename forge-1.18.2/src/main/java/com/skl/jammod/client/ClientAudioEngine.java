@@ -259,7 +259,7 @@ public class ClientAudioEngine {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
             if (mc.player != null) {
-                mc.player.sendSystemMessage(Component.literal(msg));
+                mc.player.displayClientMessage(new net.minecraft.network.chat.TextComponent(msg), false);
             }
         });
     }

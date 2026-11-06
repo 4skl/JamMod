@@ -5,7 +5,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.78'
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 sourceSets {
     main {
@@ -27,38 +27,26 @@ neoForge {
 }
 
 dependencies {
-    implementation('dev.arbjerg:lavaplayer:2.2.2') {
-        exclude group: 'org.apache.httpcomponents', module: 'httpclient'
-    }
-    implementation 'dev.arbjerg:lavaplayer-natives:2.2.2'
-    implementation 'dev.arbjerg:lava-common:2.2.2'
-    implementation 'dev.lavalink.youtube:common:1.18.2'
+    // Compile against the bundled library and its exposed APIs
+    compileOnly project(':lavaplayer-bundle')
 
-    jarJar('dev.arbjerg:lavaplayer:2.2.2') {
-        exclude group: 'org.apache.httpcomponents', module: 'httpclient'
-    }
-    jarJar 'dev.arbjerg:lavaplayer-natives:2.2.2'
-    jarJar 'dev.arbjerg:lava-common:2.2.2'
-    jarJar 'dev.lavalink.youtube:common:1.18.2'
+    // Dev runtime classpath for NeoForge runs
+    additionalRuntimeClasspath project(':lavaplayer-bundle')
 
-    additionalRuntimeClasspath('dev.arbjerg:lavaplayer:2.2.2') {
-        exclude group: 'org.apache.httpcomponents', module: 'httpclient'
-    }
-    additionalRuntimeClasspath 'dev.arbjerg:lavaplayer-natives:2.2.2'
-    additionalRuntimeClasspath 'dev.arbjerg:lava-common:2.2.2'
-    additionalRuntimeClasspath 'dev.lavalink.youtube:common:1.18.2'
+    // Bundles lavaplayer-bundle into the final JAR for production
+    jarJar project(':lavaplayer-bundle')
 }
 
 jar {
     manifest {
         attributes([
-            'Specification-Title'     : 'jammod',
-            'Specification-Vendor'    : '4skl',
-            'Specification-Version'   : '1',
-            'Implementation-Title'    : project.name,
-            'Implementation-Version'  : project.version,
-            'Implementation-Vendor'   : '4skl',
-            'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                'Specification-Title'     : 'jammod',
+                'Specification-Vendor'    : '4skl',
+                'Specification-Version'   : '1',
+                'Implementation-Title'    : project.name,
+                'Implementation-Version'  : project.version,
+                'Implementation-Vendor'   : '4skl',
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
         ])
     }
 }

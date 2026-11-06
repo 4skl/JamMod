@@ -23,35 +23,39 @@ public class ModNetworking {
         CHANNEL.messageBuilder(C2SJamActionPacket.class, id(), NetworkDirection.PLAY_TO_SERVER)
                 .encoder(C2SJamActionPacket::encode)
                 .decoder(C2SJamActionPacket::decode)
-                .consumerMainThread(C2SJamActionPacket::handle)
+                .consumer(C2SJamActionPacket::handle)
                 .add();
 
         CHANNEL.messageBuilder(S2CSyncJamPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(S2CSyncJamPacket::encode)
                 .decoder(S2CSyncJamPacket::decode)
-                .consumerMainThread(S2CSyncJamPacket::handle)
+                .consumer(S2CSyncJamPacket::handle)
                 .add();
 
         CHANNEL.messageBuilder(S2CSyncJamListPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(S2CSyncJamListPacket::encode)
                 .decoder(S2CSyncJamListPacket::decode)
-                .consumerMainThread(S2CSyncJamListPacket::handle)
+                .consumer(S2CSyncJamListPacket::handle)
                 .add();
 
         CHANNEL.messageBuilder(S2CSetLocalVolumePacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(S2CSetLocalVolumePacket::encode)
                 .decoder(S2CSetLocalVolumePacket::decode)
-                .consumerMainThread(S2CSetLocalVolumePacket::handle)
+                .consumer(S2CSetLocalVolumePacket::handle)
                 .add();
 
         CHANNEL.messageBuilder(S2CSetOverlayConfigPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(S2CSetOverlayConfigPacket::encode)
                 .decoder(S2CSetOverlayConfigPacket::decode)
-                .consumerMainThread(S2CSetOverlayConfigPacket::handle)
+                .consumer(S2CSetOverlayConfigPacket::handle)
                 .add();
     }
 
     public static void sendToPlayer(ServerPlayer player, Object packet) {
         CHANNEL.sendTo(packet, player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
+    }
+
+    public static void sendToServer(Object packet) {
+        CHANNEL.sendToServer(packet);
     }
 }

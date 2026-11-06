@@ -27,38 +27,21 @@ neoForge {
 }
 
 dependencies {
-    implementation('dev.arbjerg:lavaplayer:2.2.2') {
-        exclude group: 'org.apache.httpcomponents', module: 'httpclient'
-    }
-    implementation 'dev.arbjerg:lavaplayer-natives:2.2.2'
-    implementation 'dev.arbjerg:lava-common:2.2.2'
-    implementation 'dev.lavalink.youtube:common:1.18.2'
-
-    jarJar('dev.arbjerg:lavaplayer:2.2.2') {
-        exclude group: 'org.apache.httpcomponents', module: 'httpclient'
-    }
-    jarJar 'dev.arbjerg:lavaplayer-natives:2.2.2'
-    jarJar 'dev.arbjerg:lava-common:2.2.2'
-    jarJar 'dev.lavalink.youtube:common:1.18.2'
-
-    additionalRuntimeClasspath('dev.arbjerg:lavaplayer:2.2.2') {
-        exclude group: 'org.apache.httpcomponents', module: 'httpclient'
-    }
-    additionalRuntimeClasspath 'dev.arbjerg:lavaplayer-natives:2.2.2'
-    additionalRuntimeClasspath 'dev.arbjerg:lava-common:2.2.2'
-    additionalRuntimeClasspath 'dev.lavalink.youtube:common:1.18.2'
+    compileOnly project(':lavaplayer-bundle')
+    additionalRuntimeClasspath project(':lavaplayer-bundle')
+    jarJar project(':lavaplayer-bundle')
 }
 
 jar {
     manifest {
         attributes([
-            'Specification-Title'     : 'jammod',
-            'Specification-Vendor'    : '4skl',
-            'Specification-Version'   : '1',
-            'Implementation-Title'    : project.name,
-            'Implementation-Version'  : project.version,
-            'Implementation-Vendor'   : '4skl',
-            'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                'Specification-Title'     : 'jammod',
+                'Specification-Vendor'    : '4skl',
+                'Specification-Version'   : '1',
+                'Implementation-Title'    : project.name,
+                'Implementation-Version'  : project.version,
+                'Implementation-Vendor'   : '4skl',
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
         ])
     }
 }

@@ -1,19 +1,25 @@
 package com.skl.jammod.network;
 
+import com.skl.jammod.JamMod;
 import com.skl.jammod.session.AntiSpamManager;
 import com.skl.jammod.session.JamEditPolicy;
 import com.skl.jammod.session.ServerJamRegistry;
 import com.skl.jammod.session.SyncedJam;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.ArrayList;
 import java.util.UUID;
-import java.util.function.Supplier;
 
-public class C2SJamActionPacket {
+public class C2SJamActionPacket implements CustomPacketPayload {
+    public static final ResourceLocation ID = new ResourceLocation(JamMod.MODID + ":jam_action");
+
     public enum Action {
         CREATE_JAM, JOIN_JAM, LEAVE_JAM, DELETE_JAM,
         TOGGLE_PLAY, SKIP, PREVIOUS, JUMP_TRACK,
@@ -43,34 +49,35 @@ public class C2SJamActionPacket {
         this.intArg2 = intArg2;
     }
 
-    public static void encode(C2SJamActionPacket msg, FriendlyByteBuf buf) {
-        buf.writeEnum(msg.action);
-        buf.writeUtf(msg.targetId);
-        buf.writeUtf(msg.payload);
-        buf.writeBoolean(msg.flag);
-        buf.writeInt(msg.intArg1);
-        buf.writeInt(msg.intArg2);
+    public C2SJamActionPacket(FriendlyByteBuf buf) {
+        this.action = buf.readEnum(Action.class);
+        this.targetId = buf.readUtf();
+        this.payload = buf.readUtf();
+        this.flag = buf.readBoolean();
+        this.intArg1 = buf.readInt();
+        this.intArg2 = buf.readInt();
     }
 
-    public static C2SJamActionPacket decode(FriendlyByteBuf buf) {
-        return new C2SJamActionPacket(
-                buf.readEnum(Action.class),
-                buf.readUtf(),
-                buf.readUtf(),
-                buf.readBoolean(),
-                buf.readInt(),
-                buf.readInt()
-        );
+    @Override
+    public ResourceLocation id() {
+        return ID;
     }
 
-    public static void handle(C2SJamActionPacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            ServerPlayer player = ctx.get().getSender();
-            if (player == null || player.getServer() == null) return;
+    @Override
+    public void write(FriendlyByteBuf buf) {
+        buf.writeEnum(this.action);
+        buf.writeUtf(this.targetId);
+        buf.writeUtf(this.payload);
+        buf.writeBoolean(this.flag);
+        buf.writeInt(this.intArg1);
+        buf.writeInt(this.intArg2);
+    }
+
+    public static void handle(C2SJamActionPacket msg, IPayloadContext ctx) {
+        ctx.workHandler().execute(() -> {
+            if (!(ctx.player().orElse(null) instanceof ServerPlayer player) || player.getServer() == null) return;
             UUID uuid = player.getUUID();
             String playerName = player.getGameProfile().getName();
-
-            // Dual resolution fallback so targetId or payload can be passed interchangeably
             String idOrName = !msg.targetId.isBlank() ? msg.targetId : msg.payload;
 
             switch (msg.action) {
@@ -128,8 +135,8 @@ public class C2SJamActionPacket {
                             .append(Component.literal("§a§l[Click to Join]").withStyle(s -> s
                                     .withColor(net.minecraft.ChatFormatting.GREEN)
                                     .withUnderlined(true)
-                                    .withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.RUN_COMMAND, "/jam join " + jam.getName()))
-                                    .withHoverEvent(new net.minecraft.network.chat.HoverEvent(net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT, Component.literal("Click to join " + jam.getName())))))
+                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/jam join " + jam.getName()))
+                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Click to join " + jam.getName())))))
                     );
                     return;
                 }
@@ -155,7 +162,6 @@ public class C2SJamActionPacket {
                 return;
             }
 
-            // Management actions (Host & Jam Admins)
             if (active.canManage(uuid)) {
                 if (msg.action == Action.SET_POLICY) {
                     active.setEditPolicy(active.getEditPolicy().next());
@@ -200,7 +206,6 @@ public class C2SJamActionPacket {
                 }
             }
 
-            // Playback controls (Collaborators / Open permissions)
             if (!active.canEdit(uuid)) {
                 player.sendSystemMessage(Component.literal("§c[JamMod] You do not have permission to modify this Jam."));
                 return;
@@ -244,6 +249,5 @@ public class C2SJamActionPacket {
             ServerJamRegistry.broadcastJamState(player.getServer(), active);
             ServerJamRegistry.broadcastDirectory(player.getServer());
         });
-        ctx.get().setPacketHandled(true);
     }
 }

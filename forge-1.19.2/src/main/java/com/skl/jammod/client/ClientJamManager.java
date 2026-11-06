@@ -4,7 +4,6 @@ import com.skl.jammod.network.S2CSyncJamListPacket.JamSummary;
 import com.skl.jammod.session.JamEditPolicy;
 import com.skl.jammod.session.JamTrack;
 import com.skl.jammod.session.SyncedJam;
-import com.skl.jammod.session.SyncedJam.RepeatMode;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,7 +15,7 @@ public class ClientJamManager {
     private static String ownerName = "";
     private static boolean isPrivate = false;
     private static JamEditPolicy editPolicy = JamEditPolicy.OPEN;
-    private static RepeatMode repeatMode = RepeatMode.OFF;
+    private static SyncedJam.RepeatMode repeatMode = SyncedJam.RepeatMode.OFF;
     private static boolean shuffle = false;
     private static String currentTrackUrl = "";
     private static String currentTrackTitle = "";
@@ -34,7 +33,7 @@ public class ClientJamManager {
     private static List<JamSummary> directory = new ArrayList<>();
 
     public static void updateSession(String id, String name, String owner, boolean priv,
-                                     JamEditPolicy policy, RepeatMode rep, boolean shuf,
+                                     JamEditPolicy policy, SyncedJam.RepeatMode rep, boolean shuf,
                                      String trackUrl, String trackTitle, int index,
                                      long start, boolean isPlaying,
                                      List<JamTrack> trackList,
@@ -49,7 +48,7 @@ public class ClientJamManager {
         ownerName = owner;
         isPrivate = priv;
         editPolicy = policy != null ? policy : JamEditPolicy.OPEN;
-        repeatMode = rep != null ? rep : RepeatMode.OFF;
+        repeatMode = rep != null ? rep : SyncedJam.RepeatMode.OFF;
         shuffle = shuf;
         currentTrackUrl = trackUrl;
         currentTrackTitle = trackTitle;
@@ -119,7 +118,7 @@ public class ClientJamManager {
         ownerName = "";
         isPrivate = false;
         editPolicy = JamEditPolicy.OPEN;
-        repeatMode = RepeatMode.OFF;
+        repeatMode = SyncedJam.RepeatMode.OFF;
         shuffle = false;
         currentTrackUrl = "";
         currentTrackTitle = "";
@@ -143,7 +142,7 @@ public class ClientJamManager {
     public static String getOwnerName() { return ownerName; }
     public static boolean isPrivate() { return isPrivate; }
     public static JamEditPolicy getEditPolicy() { return editPolicy; }
-    public static RepeatMode getRepeatMode() { return repeatMode; }
+    public static SyncedJam.RepeatMode getRepeatMode() { return repeatMode; }
     public static boolean isShuffle() { return shuffle; }
     public static String getCurrentTrackUrl() { return currentTrackUrl; }
     public static String getCurrentTrackTitle() { return currentTrackTitle; }

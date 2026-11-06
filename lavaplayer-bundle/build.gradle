@@ -1,0 +1,57 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'com.skl'
+version = '2.2.2'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+configurations {
+    bundle {
+        transitive = true
+        exclude group: 'org.apache.httpcomponents', module: 'httpclient'
+        exclude group: 'org.slf4j'
+        exclude group: 'com.google.code.gson'
+    }
+    // Force Gradle to provide the JAR artifact instead of an empty classes directory
+    apiElements {
+        outgoing.variants.removeIf { it.name == 'classes' }
+    }
+    runtimeElements {
+        outgoing.variants.removeIf { it.name == 'classes' }
+    }
+}
+
+dependencies {
+    bundle 'dev.arbjerg:lavaplayer:2.2.2'
+    bundle 'dev.arbjerg:lavaplayer-natives:2.2.2'
+    bundle 'dev.arbjerg:lava-common:2.2.2'
+    bundle 'dev.lavalink.youtube:common:1.18.2'
+}
+
+jar {
+    archiveBaseName = 'lavaplayer-bundle'
+    archiveVersion = project.version
+
+    from {
+        configurations.bundle.collect { zipTree(it) }
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+    exclude 'module-info.class', 'META-INF/versions/**/module-info.class'
+
+    manifest {
+        attributes([
+                'Implementation-Title'  : 'lavaplayer-bundle',
+                'Implementation-Version': project.version,
+                'FMLModType'            : 'GAMELIBRARY',
+                'Automatic-Module-Name' : 'jammod.lavaplayer'
+        ])
+    }
+}

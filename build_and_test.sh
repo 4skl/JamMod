@@ -8,6 +8,7 @@ resolve_module() {
     case "$1" in
         1.18.2|forge-1.18.2) echo "forge-1.18.2" ;;
         1.19.2|forge-1.19.2) echo "forge-1.19.2" ;;
+        1.19.4|forge-1.19.4) echo "forge-1.19.4" ;;
         1.20.1|forge-1.20.1) echo "forge-1.20.1" ;;
         1.20.4|neoforge-1.20.4) echo "neoforge-1.20.4" ;;
         1.21.1|neoforge-1.21.1) echo "neoforge-1.21.1" ;;
@@ -38,7 +39,7 @@ run_client() {
 
     if [ -z "$MODULE_NAME" ]; then
         echo "Error: Unknown or missing version '$TARGET_VER'."
-        echo "Available versions: 1.18.2 | 1.19.2 | 1.20.1 | 1.20.4 | 1.21.1"
+        echo "Available versions: 1.18.2 | 1.19.2 | 1.19.4 | 1.20.1 | 1.20.4 | 1.21.1"
         exit 1
     fi
 
@@ -73,6 +74,7 @@ case "$CMD" in
         build_module "neoforge-1.21.1" "JamMod-1.21.1-neoforge.jar"
         build_module "neoforge-1.20.4" "JamMod-1.20.4-neoforge.jar"
         build_module "forge-1.19.2" "JamMod-1.19.2-forge.jar"
+        build_module "forge-1.19.4" "JamMod-1.19.4-forge.jar"
         build_module "forge-1.18.2" "JamMod-1.18.2-forge.jar"
         ;;
     *)
@@ -91,7 +93,7 @@ case "$CMD" in
             build_module "$MODULE" "$JAR_NAME"
         else
             echo "Usage:"
-            echo "  Build:  ./build_and_test.sh [1.18.2 | 1.19.2 | 1.20.1 | 1.20.4 | 1.21.1 | all | clean]"
+            echo "  Build:  ./build_and_test.sh [1.18.2 | 1.19.2 | 1.19.4 | 1.20.1 | 1.20.4 | 1.21.1 | all | clean]"
             echo "  Run:    ./build_and_test.sh run <version>      (e.g., ./build_and_test.sh run 1.21.1)"
             echo "          ./build_and_test.sh <version> run      (e.g., ./build_and_test.sh 1.21.1 run)"
             exit 1

@@ -4,7 +4,6 @@ import com.skl.jammod.client.ClientJamManager;
 import com.skl.jammod.session.JamEditPolicy;
 import com.skl.jammod.session.JamTrack;
 import com.skl.jammod.session.SyncedJam;
-import com.skl.jammod.session.SyncedJam.RepeatMode;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
@@ -12,28 +11,27 @@ import net.minecraftforge.network.NetworkEvent;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 public class S2CSyncJamPacket {
     private final String jamId, jamName, ownerName, currentTrackUrl, currentTrackTitle;
     private final boolean isPrivate, isPlaying, canEdit, isOwner, isAdmin, shuffle;
     private final JamEditPolicy editPolicy;
-    private final RepeatMode repeatMode;
+    private final SyncedJam.RepeatMode repeatMode;
     private final int trackIndex, listenerCount;
     private final long startTimestamp;
     private final List<JamTrack> tracks;
     private final List<SyncedJam.MemberInfo> members;
 
     public S2CSyncJamPacket(String jamId, String jamName, String ownerName, boolean isPrivate,
-                            JamEditPolicy editPolicy, RepeatMode repeatMode, boolean shuffle,
+                            JamEditPolicy editPolicy, SyncedJam.RepeatMode repeatMode, boolean shuffle,
                             String currentTrackUrl, String currentTrackTitle, int trackIndex,
                             long startTimestamp, boolean isPlaying, List<JamTrack> tracks,
                             List<SyncedJam.MemberInfo> members,
                             int listenerCount, boolean canEdit, boolean isOwner, boolean isAdmin) {
         this.jamId = jamId; this.jamName = jamName; this.ownerName = ownerName; this.isPrivate = isPrivate;
         this.editPolicy = editPolicy != null ? editPolicy : JamEditPolicy.OPEN;
-        this.repeatMode = repeatMode != null ? repeatMode : RepeatMode.OFF;
+        this.repeatMode = repeatMode != null ? repeatMode : SyncedJam.RepeatMode.OFF;
         this.shuffle = shuffle; this.currentTrackUrl = currentTrackUrl; this.currentTrackTitle = currentTrackTitle;
         this.trackIndex = trackIndex; this.startTimestamp = startTimestamp; this.isPlaying = isPlaying;
         this.tracks = tracks != null ? tracks : new ArrayList<>();
@@ -65,7 +63,7 @@ public class S2CSyncJamPacket {
     public static S2CSyncJamPacket decode(FriendlyByteBuf buf) {
         String id = buf.readUtf(), name = buf.readUtf(), owner = buf.readUtf();
         boolean priv = buf.readBoolean(); JamEditPolicy pol = buf.readEnum(JamEditPolicy.class);
-        RepeatMode rep = buf.readEnum(RepeatMode.class); boolean shuf = buf.readBoolean();
+        SyncedJam.RepeatMode rep = buf.readEnum(SyncedJam.RepeatMode.class); boolean shuf = buf.readBoolean();
         String tUrl = buf.readUtf(), tTitle = buf.readUtf();
         int idx = buf.readInt(); long start = buf.readLong(); boolean play = buf.readBoolean();
 

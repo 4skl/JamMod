@@ -4,9 +4,14 @@ import com.skl.jammod.session.AntiSpamManager;
 import com.skl.jammod.session.JamEditPolicy;
 import com.skl.jammod.session.ServerJamRegistry;
 import com.skl.jammod.session.SyncedJam;
+import net.minecraft.ChatFormatting;
+import net.minecraft.Util;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.ArrayList;
@@ -43,34 +48,35 @@ public class C2SJamActionPacket {
         this.intArg2 = intArg2;
     }
 
-    public static void encode(C2SJamActionPacket msg, FriendlyByteBuf buf) {
-        buf.writeEnum(msg.action);
-        buf.writeUtf(msg.targetId);
-        buf.writeUtf(msg.payload);
-        buf.writeBoolean(msg.flag);
-        buf.writeInt(msg.intArg1);
-        buf.writeInt(msg.intArg2);
+    public C2SJamActionPacket(FriendlyByteBuf buf) {
+        this.action = buf.readEnum(Action.class);
+        this.targetId = buf.readUtf();
+        this.payload = buf.readUtf();
+        this.flag = buf.readBoolean();
+        this.intArg1 = buf.readInt();
+        this.intArg2 = buf.readInt();
+    }
+
+    public void encode(FriendlyByteBuf buf) {
+        buf.writeEnum(this.action);
+        buf.writeUtf(this.targetId);
+        buf.writeUtf(this.payload);
+        buf.writeBoolean(this.flag);
+        buf.writeInt(this.intArg1);
+        buf.writeInt(this.intArg2);
     }
 
     public static C2SJamActionPacket decode(FriendlyByteBuf buf) {
-        return new C2SJamActionPacket(
-                buf.readEnum(Action.class),
-                buf.readUtf(),
-                buf.readUtf(),
-                buf.readBoolean(),
-                buf.readInt(),
-                buf.readInt()
-        );
+        return new C2SJamActionPacket(buf);
     }
 
-    public static void handle(C2SJamActionPacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            ServerPlayer player = ctx.get().getSender();
+    public static void handle(C2SJamActionPacket msg, Supplier<NetworkEvent.Context> ctxSupplier) {
+        NetworkEvent.Context ctx = ctxSupplier.get();
+        ctx.enqueueWork(() -> {
+            ServerPlayer player = ctx.getSender();
             if (player == null || player.getServer() == null) return;
             UUID uuid = player.getUUID();
             String playerName = player.getGameProfile().getName();
-
-            // Dual resolution fallback so targetId or payload can be passed interchangeably
             String idOrName = !msg.targetId.isBlank() ? msg.targetId : msg.payload;
 
             switch (msg.action) {
@@ -87,15 +93,16 @@ public class C2SJamActionPacket {
                         ServerJamRegistry.broadcastJamState(player.getServer(), jam);
                         ServerJamRegistry.broadcastDirectory(player.getServer());
                     } else {
-                        player.sendSystemMessage(Component.literal("§c[JamMod] Cannot join Jam: '" + idOrName + "' (Private or Not Found)."));
+                        player.sendMessage(new TextComponent("§c[JamMod] Cannot join Jam: '" + idOrName + "' (Private or Not Found)."), Util.NIL_UUID);
                     }
                     return;
                 }
                 case LEAVE_JAM -> {
                     SyncedJam old = ServerJamRegistry.leaveCurrentJam(uuid);
-                    ModNetworking.sendToPlayer(player, new S2CSyncJamPacket(
-                            "", "", "", false, JamEditPolicy.OPEN, SyncedJam.RepeatMode.OFF, false,
-                            "", "", 0, 0, false, new ArrayList<>(), new ArrayList<>(), 0, false, false, false));
+                    ModNetworking.CHANNEL.sendTo(new S2CSyncJamPacket(
+                                    "", "", "", false, JamEditPolicy.OPEN, SyncedJam.RepeatMode.OFF, false,
+                                    "", "", 0, 0, false, new ArrayList<>(), new ArrayList<>(), 0, false, false, false),
+                            player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
                     if (old != null) ServerJamRegistry.broadcastJamState(player.getServer(), old);
                     ServerJamRegistry.broadcastDirectory(player.getServer());
                     return;
@@ -110,12 +117,12 @@ public class C2SJamActionPacket {
                     if (jam == null) return;
                     ServerPlayer target = player.getServer().getPlayerList().getPlayerByName(msg.payload);
                     if (target == null) {
-                        player.sendSystemMessage(Component.literal("§c[JamMod] Player '" + msg.payload + "' is not online."));
+                        player.sendMessage(new TextComponent("§c[JamMod] Player '" + msg.payload + "' is not online."), Util.NIL_UUID);
                         return;
                     }
                     String err = AntiSpamManager.canSendInvite(uuid, target.getUUID());
                     if (err != null) {
-                        player.sendSystemMessage(Component.literal("§c[JamMod] " + err));
+                        player.sendMessage(new TextComponent("§c[JamMod] " + err), Util.NIL_UUID);
                         return;
                     }
 
@@ -123,13 +130,14 @@ public class C2SJamActionPacket {
                     jam.invitePlayer(target.getUUID(), target.getName().getString());
                     ServerJamRegistry.save();
 
-                    player.sendSystemMessage(Component.literal("§6[JamMod] §aInvited §f" + target.getName().getString() + " §ato §f" + jam.getName()));
-                    target.sendSystemMessage(Component.literal("§6[JamMod] §f" + playerName + " §ainvited you to Jam: §e" + jam.getName() + " ")
-                            .append(Component.literal("§a§l[Click to Join]").withStyle(s -> s
-                                    .withColor(net.minecraft.ChatFormatting.GREEN)
-                                    .withUnderlined(true)
-                                    .withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.RUN_COMMAND, "/jam join " + jam.getName()))
-                                    .withHoverEvent(new net.minecraft.network.chat.HoverEvent(net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT, Component.literal("Click to join " + jam.getName())))))
+                    player.sendMessage(new TextComponent("§6[JamMod] §aInvited §f" + target.getName().getString() + " §ato §f" + jam.getName()), Util.NIL_UUID);
+                    target.sendMessage(new TextComponent("§6[JamMod] §f" + playerName + " §ainvited you to Jam: §e" + jam.getName() + " ")
+                                    .append(new TextComponent("§a§l[Click to Join]").withStyle(s -> s
+                                            .withColor(ChatFormatting.GREEN)
+                                            .withUnderlined(true)
+                                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/jam join " + jam.getName()))
+                                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new TextComponent("Click to join " + jam.getName()))))),
+                            Util.NIL_UUID
                     );
                     return;
                 }
@@ -155,7 +163,6 @@ public class C2SJamActionPacket {
                 return;
             }
 
-            // Management actions (Host & Jam Admins)
             if (active.canManage(uuid)) {
                 if (msg.action == Action.SET_POLICY) {
                     active.setEditPolicy(active.getEditPolicy().next());
@@ -183,7 +190,7 @@ public class C2SJamActionPacket {
                     active.setRole(targetUuid, targetName, SyncedJam.Role.EDITOR);
                     ServerJamRegistry.save();
                     ServerJamRegistry.broadcastJamState(player.getServer(), active);
-                    player.sendSystemMessage(Component.literal("§6[JamMod] §aAdded §f" + targetName + " §aas Editor."));
+                    player.sendMessage(new TextComponent("§6[JamMod] §aAdded §f" + targetName + " §aas Editor."), Util.NIL_UUID);
                     return;
                 } else if (msg.action == Action.REMOVE_MEMBER && !msg.targetId.isBlank()) {
                     try {
@@ -193,16 +200,15 @@ public class C2SJamActionPacket {
                             ServerJamRegistry.save();
                             ServerJamRegistry.broadcastJamState(player.getServer(), active);
                         } else {
-                            player.sendSystemMessage(Component.literal("§c[JamMod] You do not have authority to remove this member."));
+                            player.sendMessage(new TextComponent("§c[JamMod] You do not have authority to remove this member."), Util.NIL_UUID);
                         }
                     } catch (Exception ignored) {}
                     return;
                 }
             }
 
-            // Playback controls (Collaborators / Open permissions)
             if (!active.canEdit(uuid)) {
-                player.sendSystemMessage(Component.literal("§c[JamMod] You do not have permission to modify this Jam."));
+                player.sendMessage(new TextComponent("§c[JamMod] You do not have permission to modify this Jam."), Util.NIL_UUID);
                 return;
             }
 
@@ -244,6 +250,6 @@ public class C2SJamActionPacket {
             ServerJamRegistry.broadcastJamState(player.getServer(), active);
             ServerJamRegistry.broadcastDirectory(player.getServer());
         });
-        ctx.get().setPacketHandled(true);
+        ctx.setPacketHandled(true);
     }
 }

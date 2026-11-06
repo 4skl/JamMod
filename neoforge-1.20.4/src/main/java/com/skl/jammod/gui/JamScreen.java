@@ -20,7 +20,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundSource;
 import org.lwjgl.glfw.GLFW;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,11 +35,9 @@ public class JamScreen extends Screen {
     private int page = 0;
     private static final int ITEMS_PER_PAGE = 5;
 
-    // Responsive pagination controls
     private Button prevPageBtn;
     private Button nextPageBtn;
 
-    // Dynamic buttons
     private Button playPauseButton;
     private Button repeatButton;
     private Button shuffleButton;
@@ -56,7 +53,7 @@ public class JamScreen extends Screen {
 
     @Override
     protected void init() {
-        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.REQUEST_SYNC));
+        ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.REQUEST_SYNC));
 
         if (!ClientJamManager.isInJam() && (currentView == View.PLAYER || currentView == View.ADD_TRACK || currentView == View.SETTINGS || currentView == View.ROLES || currentView == View.INVITE)) {
             currentView = View.DIRECTORY_PUBLIC;
@@ -96,7 +93,6 @@ public class JamScreen extends Screen {
     private void initViewWidgets() {
         int midX = this.width / 2;
 
-        // Centered pagination controls positioned directly under list items
         if (currentView == View.PLAYER || currentView == View.INVITE || currentView == View.DIRECTORY_PUBLIC || currentView == View.DIRECTORY_MY || currentView == View.ROLES) {
             int py = getPaginationY();
             this.prevPageBtn = Button.builder(Component.literal("◄ Prev"), b -> { if (page > 0) page--; })
@@ -116,16 +112,16 @@ public class JamScreen extends Screen {
                             .bounds(midX - 180, 32, 55, 18).build());
 
                     this.addRenderableWidget(Button.builder(Component.literal("⏮"), b ->
-                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.PREVIOUS))
+                            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.PREVIOUS))
                     ).bounds(midX - 120, 32, 24, 18).build());
 
                     playPauseButton = Button.builder(Component.literal(ClientJamManager.isPlaying() ? "⏸" : "▶"), b ->
-                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_PLAY))
+                            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_PLAY))
                     ).bounds(midX - 93, 32, 24, 18).build();
                     this.addRenderableWidget(playPauseButton);
 
                     this.addRenderableWidget(Button.builder(Component.literal("⏭"), b ->
-                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SKIP))
+                            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SKIP))
                     ).bounds(midX - 66, 32, 24, 18).build());
 
                     String repSymbol = switch (ClientJamManager.getRepeatMode()) {
@@ -134,12 +130,12 @@ public class JamScreen extends Screen {
                         default -> "➡";
                     };
                     repeatButton = Button.builder(Component.literal(repSymbol), b ->
-                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.CYCLE_REPEAT))
+                            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.CYCLE_REPEAT))
                     ).bounds(midX - 39, 32, 24, 18).tooltip(Tooltip.create(Component.literal("Repeat Mode: Off / All / One"))).build();
                     this.addRenderableWidget(repeatButton);
 
                     shuffleButton = Button.builder(Component.literal(ClientJamManager.isShuffle() ? "§a🔀" : "§7🔀"), b ->
-                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_SHUFFLE))
+                            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_SHUFFLE))
                     ).bounds(midX - 12, 32, 24, 18).tooltip(Tooltip.create(Component.literal("Toggle Shuffle"))).build();
                     this.addRenderableWidget(shuffleButton);
                 }
@@ -147,16 +143,14 @@ public class JamScreen extends Screen {
                 this.addRenderableWidget(Button.builder(Component.literal("👥"), b -> switchView(View.INVITE))
                         .bounds(midX + 16, 32, 24, 18).tooltip(Tooltip.create(Component.literal("Invite Online Players"))).build());
 
-                // Settings button (Available to all for Client HUD settings, + Room settings if Host/Admin)
                 this.addRenderableWidget(Button.builder(Component.literal("⚙"), b -> switchView(View.SETTINGS))
                         .bounds(midX + 43, 32, 24, 18).tooltip(Tooltip.create(Component.literal("Settings & Preferences"))).build());
 
                 this.addRenderableWidget(Button.builder(Component.literal("Leave"), b -> {
-                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.LEAVE_JAM));
+                    ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.LEAVE_JAM));
                     switchView(View.DIRECTORY_PUBLIC);
                 }).bounds(midX + 130, 32, 50, 18).build());
 
-                // Minecraft Music Volume Slider
                 Minecraft mc = Minecraft.getInstance();
                 double currentMusic = mc.options.getSoundSourceVolume(SoundSource.MUSIC);
                 this.volumeSlider = new AbstractSliderButton(midX - 180, this.height - 18, 130, 14,
@@ -191,7 +185,7 @@ public class JamScreen extends Screen {
                 this.addRenderableWidget(Button.builder(Component.literal("▶ Play Now"), b -> {
                     String url = inputField.getValue().trim();
                     if (!url.isEmpty()) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                        ModNetworking.sendToServer(new C2SJamActionPacket(
                                 C2SJamActionPacket.Action.ADD_TRACK, titleField.getValue().trim(), url, true, 0));
                         switchView(View.PLAYER);
                     }
@@ -200,7 +194,7 @@ public class JamScreen extends Screen {
                 this.addRenderableWidget(Button.builder(Component.literal("➕ Queue"), b -> {
                     String url = inputField.getValue().trim();
                     if (!url.isEmpty()) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                        ModNetworking.sendToServer(new C2SJamActionPacket(
                                 C2SJamActionPacket.Action.ADD_TRACK, titleField.getValue().trim(), url, false, 0));
                         switchView(View.PLAYER);
                     }
@@ -211,7 +205,6 @@ public class JamScreen extends Screen {
             }
 
             case SETTINGS -> {
-                // Client HUD Settings (Available to all)
                 this.overlayToggleBtn = Button.builder(Component.literal("HUD Overlay: " + (ClientJamConfig.isOverlayEnabled() ? "§aON" : "§cOFF")), b -> {
                     ClientJamConfig.toggleOverlay();
                     b.setMessage(Component.literal("HUD Overlay: " + (ClientJamConfig.isOverlayEnabled() ? "§aON" : "§cOFF")));
@@ -224,17 +217,16 @@ public class JamScreen extends Screen {
                 }).bounds(midX + 5, 48, 175, 20).tooltip(Tooltip.create(Component.literal("Cycle screen corner: Top-Right, Top-Left, Bottom-Right, Bottom-Left."))).build();
                 this.addRenderableWidget(overlayCornerBtn);
 
-                // Room Settings (Host / Admin only)
                 if (ClientJamManager.canManage()) {
                     if (ClientJamManager.isOwner()) {
                         privacyButton = Button.builder(Component.literal("Privacy: " + (ClientJamManager.isPrivate() ? "§cPrivate" : "§aPublic")), b ->
-                                ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_PRIVACY))
+                                ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_PRIVACY))
                         ).bounds(midX - 180, 80, 175, 20).tooltip(Tooltip.create(Component.literal("Toggle whether this Jam appears in the Public directory."))).build();
                         this.addRenderableWidget(privacyButton);
                     }
 
                     policyButton = Button.builder(Component.literal("Policy: §e" + ClientJamManager.getEditPolicy().getDisplayName()), b ->
-                                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SET_POLICY))
+                                    ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SET_POLICY))
                             ).bounds(midX + (ClientJamManager.isOwner() ? 5 : -180), 80, ClientJamManager.isOwner() ? 175 : 360, 20)
                             .tooltip(Tooltip.create(Component.literal("Cycle who can edit: Owner & Admins, Collaborators, or Open to All."))).build();
                     this.addRenderableWidget(policyButton);
@@ -244,7 +236,7 @@ public class JamScreen extends Screen {
 
                     if (ClientJamManager.isOwner()) {
                         this.addRenderableWidget(Button.builder(Component.literal("§cDelete Jam"), b -> {
-                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                            ModNetworking.sendToServer(new C2SJamActionPacket(
                                     C2SJamActionPacket.Action.DELETE_JAM, ClientJamManager.getJamId()));
                             switchView(View.DIRECTORY_PUBLIC);
                         }).bounds(midX + 5, 108, 175, 20).build());
@@ -267,7 +259,7 @@ public class JamScreen extends Screen {
                 this.addRenderableWidget(Button.builder(Component.literal("➕ Add"), b -> {
                     String name = addMemberField.getValue().trim();
                     if (!name.isEmpty()) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                        ModNetworking.sendToServer(new C2SJamActionPacket(
                                 C2SJamActionPacket.Action.ADD_MEMBER_BY_NAME, "", name));
                         addMemberField.setValue("");
                     }
@@ -300,7 +292,7 @@ public class JamScreen extends Screen {
                 this.addRenderableWidget(Button.builder(Component.literal("Create & Join"), b -> {
                     String name = inputField.getValue().trim();
                     if (!name.isEmpty()) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                        ModNetworking.sendToServer(new C2SJamActionPacket(
                                 C2SJamActionPacket.Action.CREATE_JAM, "", name, createAsPrivate, 0));
                         switchView(View.PLAYER);
                     }
@@ -321,7 +313,6 @@ public class JamScreen extends Screen {
             int currentIdx = ClientJamManager.getCurrentTrackIndex();
             JamTrack currentTrack = (currentIdx >= 0 && currentIdx < tracks.size()) ? tracks.get(currentIdx) : null;
 
-            // Interactive Seekbar Click
             if (currentTrack != null && currentTrack.getDurationMs() > 0 && ClientJamManager.canEdit()) {
                 int barX = midX - 180;
                 int barY = 78;
@@ -329,7 +320,7 @@ public class JamScreen extends Screen {
                 if (mouseX >= barX && mouseX <= barX + barW && mouseY >= barY - 4 && mouseY <= barY + 8) {
                     float pct = (float) (mouseX - barX) / (float) barW;
                     long targetMs = (long) (pct * currentTrack.getDurationMs());
-                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                    ModNetworking.sendToServer(new C2SJamActionPacket(
                             C2SJamActionPacket.Action.SEEK, String.valueOf(targetMs)));
                     return true;
                 }
@@ -344,24 +335,24 @@ public class JamScreen extends Screen {
                 int itemY = startY + (i * 21);
 
                 if (canEdit && mouseX >= midX - 180 && mouseX <= midX + 65 && mouseY >= itemY && mouseY <= itemY + 19) {
-                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                    ModNetworking.sendToServer(new C2SJamActionPacket(
                             C2SJamActionPacket.Action.JUMP_TRACK, "", "", false, idx));
                     return true;
                 }
 
                 if (canEdit) {
                     if (idx > 0 && mouseX >= midX + 70 && mouseX <= midX + 95 && mouseY >= itemY && mouseY <= itemY + 19) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                        ModNetworking.sendToServer(new C2SJamActionPacket(
                                 C2SJamActionPacket.Action.MOVE_TRACK, "", "", false, idx, idx - 1));
                         return true;
                     }
                     if (idx < tracks.size() - 1 && mouseX >= midX + 100 && mouseX <= midX + 125 && mouseY >= itemY && mouseY <= itemY + 19) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                        ModNetworking.sendToServer(new C2SJamActionPacket(
                                 C2SJamActionPacket.Action.MOVE_TRACK, "", "", false, idx, idx + 1));
                         return true;
                     }
                     if (mouseX >= midX + 130 && mouseX <= midX + 155 && mouseY >= itemY && mouseY <= itemY + 19) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                        ModNetworking.sendToServer(new C2SJamActionPacket(
                                 C2SJamActionPacket.Action.REMOVE_TRACK, "", "", false, idx));
                         return true;
                     }
@@ -377,18 +368,16 @@ public class JamScreen extends Screen {
                 SyncedJam.MemberInfo member = list.get(offset + i);
                 int itemY = startY + (i * 21);
 
-                // Cycle role button
                 if (ClientJamManager.canManage() && member.role() != SyncedJam.Role.OWNER &&
                         mouseX >= midX + 60 && mouseX <= midX + 150 && mouseY >= itemY && mouseY <= itemY + 19) {
-                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                    ModNetworking.sendToServer(new C2SJamActionPacket(
                             C2SJamActionPacket.Action.CYCLE_MEMBER_ROLE, member.uuid().toString(), ""));
                     return true;
                 }
 
-                // Remove member [X]
                 if (ClientJamManager.canManage() && member.role() != SyncedJam.Role.OWNER &&
                         mouseX >= midX + 155 && mouseX <= midX + 180 && mouseY >= itemY && mouseY <= itemY + 19) {
-                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                    ModNetworking.sendToServer(new C2SJamActionPacket(
                             C2SJamActionPacket.Action.REMOVE_MEMBER, member.uuid().toString(), ""));
                     return true;
                 }
@@ -410,7 +399,7 @@ public class JamScreen extends Screen {
                     int itemY = startY + (i * 22);
 
                     if (mouseX >= midX + 100 && mouseX <= midX + 175 && mouseY >= itemY && mouseY <= itemY + 20) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                        ModNetworking.sendToServer(new C2SJamActionPacket(
                                 C2SJamActionPacket.Action.INVITE_PLAYER, "", info.getProfile().getName(), false, 0));
                         return true;
                     }
@@ -431,7 +420,7 @@ public class JamScreen extends Screen {
                 int itemY = startY + (i * 26);
 
                 if (mouseX >= midX - 180 && mouseX <= midX + 180 && mouseY >= itemY && mouseY <= itemY + 24) {
-                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                    ModNetworking.sendToServer(new C2SJamActionPacket(
                             C2SJamActionPacket.Action.JOIN_JAM, jam.id(), jam.name()));
                     switchView(View.PLAYER);
                     return true;
@@ -446,12 +435,12 @@ public class JamScreen extends Screen {
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
             if (currentView == View.ADD_TRACK && inputField != null && !inputField.getValue().trim().isEmpty()) {
-                ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                ModNetworking.sendToServer(new C2SJamActionPacket(
                         C2SJamActionPacket.Action.ADD_TRACK, titleField.getValue().trim(), inputField.getValue().trim(), true, 0));
                 switchView(View.PLAYER);
                 return true;
             } else if (currentView == View.ROLES && addMemberField != null && !addMemberField.getValue().trim().isEmpty()) {
-                ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                ModNetworking.sendToServer(new C2SJamActionPacket(
                         C2SJamActionPacket.Action.ADD_MEMBER_BY_NAME, "", addMemberField.getValue().trim()));
                 addMemberField.setValue("");
                 return true;
@@ -462,7 +451,12 @@ public class JamScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(graphics);
+        // Standard 1.20.4 background rendering
+        this.renderBackground(graphics, mouseX, mouseY, partialTick);
+
+        // Render widgets (buttons, input boxes)
+        super.render(graphics, mouseX, mouseY, partialTick);
+
         int midX = this.width / 2;
 
         if (playPauseButton != null) playPauseButton.setMessage(Component.literal(ClientJamManager.isPlaying() ? "⏸" : "▶"));
@@ -487,7 +481,6 @@ public class JamScreen extends Screen {
             privacyButton.setMessage(Component.literal("Privacy: " + (ClientJamManager.isPrivate() ? "§cPrivate" : "§aPublic")));
         }
 
-        // Adaptive pagination calculations & safe bounds
         int totalItems = 0;
         if (currentView == View.PLAYER) totalItems = ClientJamManager.getTracks().size();
         else if (currentView == View.DIRECTORY_PUBLIC || currentView == View.DIRECTORY_MY) {
@@ -541,7 +534,6 @@ public class JamScreen extends Screen {
                 List<JamTrack> tracks = ClientJamManager.getTracks();
                 JamTrack curTrack = (currentIdx >= 0 && currentIdx < tracks.size()) ? tracks.get(currentIdx) : null;
 
-                // Timeline Seekbar
                 if (curTrack != null && curTrack.getDurationMs() > 0) {
                     long elapsed = ClientJamManager.isPlaying()
                             ? Math.max(0, System.currentTimeMillis() - ClientJamManager.getStartTimestamp())
@@ -689,8 +681,6 @@ public class JamScreen extends Screen {
             }
             default -> {}
         }
-
-        super.render(graphics, mouseX, mouseY, partialTick);
     }
 
     @Override

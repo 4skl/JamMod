@@ -21,4 +21,20 @@ subprojects {
         maven { url = 'https://maven.lavalink.dev/releases' }
         maven { url = 'https://jitpack.io' }
     }
+
+    // Automatically expand properties in all mods.toml and neoforge.mods.toml files
+    tasks.named('processResources', ProcessResources) {
+        var replaceProperties = [
+                'mod_id'         : findProperty('mod_id') ?: 'jammod',
+                'mod_name'       : findProperty('mod_name') ?: 'JamMod',
+                'mod_version'    : findProperty('mod_version') ?: project.version,
+                'mod_license'    : findProperty('mod_license') ?: 'MIT',
+                'mod_description': findProperty('mod_description') ?: 'Synchronized music and audio player in Minecraft!'
+        ]
+        inputs.properties replaceProperties
+
+        filesMatching(['META-INF/mods.toml', 'META-INF/neoforge.mods.toml']) {
+            expand replaceProperties
+        }
+    }
 }

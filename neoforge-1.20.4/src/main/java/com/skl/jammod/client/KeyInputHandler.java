@@ -5,26 +5,43 @@ import com.skl.jammod.JamMod;
 import com.skl.jammod.gui.JamScreen;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
-import net.minecraftforge.client.settings.KeyConflictContext;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.client.settings.KeyConflictContext;
+import net.neoforged.neoforge.event.TickEvent;
 import org.lwjgl.glfw.GLFW;
 
-@Mod.EventBusSubscriber(modid = JamMod.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class KeyInputHandler {
-    public static final KeyMapping OPEN_JAM_MENU = new KeyMapping(
-            "key.jammod.open_menu",
+    public static final KeyMapping OPEN_JAM_SCREEN = new KeyMapping(
+            "key.jammod.open_gui",
             KeyConflictContext.IN_GAME,
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_J,
-            "category.jammod"
+            "key.categories.jammod"
     );
 
-    @SubscribeEvent
-    public static void registerKeys(RegisterKeyMappingsEvent event) {
-        event.register(OPEN_JAM_MENU);
+    @Mod.EventBusSubscriber(modid = JamMod.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
+    public static class ModBusEvents {
+        @SubscribeEvent
+        public static void registerKeys(RegisterKeyMappingsEvent event) {
+            event.register(OPEN_JAM_SCREEN);
+        }
+    }
+
+    @Mod.EventBusSubscriber(modid = JamMod.MODID, value = Dist.CLIENT)
+    public static class GameBusEvents {
+        @SubscribeEvent
+        public static void onClientTick(TickEvent.ClientTickEvent event) {
+            if (event.phase == TickEvent.Phase.END) {
+                Minecraft mc = Minecraft.getInstance();
+                if (mc.player != null) {
+                    while (OPEN_JAM_SCREEN.consumeClick()) {
+                        mc.setScreen(new JamScreen());
+                    }
+                }
+            }
+        }
     }
 }

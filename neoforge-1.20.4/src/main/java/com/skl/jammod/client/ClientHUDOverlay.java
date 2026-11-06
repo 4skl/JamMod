@@ -4,12 +4,12 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.skl.jammod.JamMod;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RenderGuiEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.client.event.RenderGuiEvent;
 
-@Mod.EventBusSubscriber(modid = JamMod.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@Mod.EventBusSubscriber(modid = JamMod.MODID, value = Dist.CLIENT)
 public class ClientHUDOverlay {
     private static String popupTitle = "";
     private static long popupStartTime = 0;
@@ -28,7 +28,6 @@ public class ClientHUDOverlay {
         if (mc.options.hideGui) return;
         if (!ClientJamConfig.isOverlayEnabled()) return;
 
-        // Freeze countdown timer while a GUI screen is open so it shows when closed
         if (mc.screen != null) {
             popupStartTime = System.currentTimeMillis();
             return;
@@ -49,7 +48,6 @@ public class ClientHUDOverlay {
         int width = 195;
         int height = 28;
 
-        // Position based on configured corner
         OverlayCorner corner = ClientJamConfig.getOverlayCorner();
         int x, y;
         switch (corner) {

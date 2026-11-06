@@ -9,7 +9,7 @@ import com.skl.jammod.network.S2CSyncJamListPacket;
 import com.skl.jammod.network.S2CSyncJamPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.fml.loading.FMLPaths;
+import net.neoforged.fml.loading.FMLPaths;
 
 import java.io.Reader;
 import java.io.Writer;
@@ -105,14 +105,12 @@ public class ServerJamRegistry {
         if (query == null || query.isBlank()) return null;
         String clean = query.trim();
 
-        // 1. Direct ID match
         for (SyncedJam j : JAMS.values()) {
             j.ensureRuntimeState();
             if (j.getId().equalsIgnoreCase(clean)) {
                 if (j.isAllowed(player)) return j;
             }
         }
-        // 2. Name match
         for (SyncedJam j : JAMS.values()) {
             j.ensureRuntimeState();
             if (j.getName().equalsIgnoreCase(clean)) {

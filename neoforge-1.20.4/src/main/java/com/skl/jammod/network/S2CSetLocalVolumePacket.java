@@ -1,40 +1,44 @@
 package com.skl.jammod.network;
 
+import com.skl.jammod.JamMod;
 import com.skl.jammod.client.ClientAudioEngine;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.function.Supplier;
+public class S2CSetLocalVolumePacket implements CustomPacketPayload {
+    public static final ResourceLocation ID = new ResourceLocation(JamMod.MODID + ":set_local_volume");
 
-public class S2CSetLocalVolumePacket {
     private final int volume;
 
     public S2CSetLocalVolumePacket(int volume) {
         this.volume = volume;
     }
 
-    public static void encode(S2CSetLocalVolumePacket msg, FriendlyByteBuf buf) {
-        buf.writeInt(msg.volume);
+    public S2CSetLocalVolumePacket(FriendlyByteBuf buf) {
+        this.volume = buf.readInt();
     }
 
-    public static S2CSetLocalVolumePacket decode(FriendlyByteBuf buf) {
-        return new S2CSetLocalVolumePacket(buf.readInt());
+    @Override
+    public ResourceLocation id() {
+        return ID;
     }
 
-    public static void handle(S2CSetLocalVolumePacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() ->
-                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
-                    Minecraft mc = Minecraft.getInstance();
-                    double target = Math.max(0.0, Math.min(1.0, msg.volume / 100.0));
-                    mc.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(target);
-                    mc.options.save();
-                    ClientAudioEngine.updateVolume();
-                })
-        );
-        ctx.get().setPacketHandled(true);
+    @Override
+    public void write(FriendlyByteBuf buf) {
+        buf.writeInt(this.volume);
+    }
+
+    public static void handle(S2CSetLocalVolumePacket msg, IPayloadContext ctx) {
+        ctx.workHandler().execute(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            double target = Math.max(0.0, Math.min(1.0, msg.volume / 100.0));
+            mc.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(target);
+            mc.options.save();
+            ClientAudioEngine.updateVolume();
+        });
     }
 }

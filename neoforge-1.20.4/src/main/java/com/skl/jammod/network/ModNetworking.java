@@ -1,57 +1,59 @@
 package com.skl.jammod.network;
 
 import com.skl.jammod.JamMod;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkDirection;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.simple.SimpleChannel;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlerEvent;
+import net.neoforged.neoforge.network.registration.IPayloadRegistrar;
 
 public class ModNetworking {
-    private static final String PROTOCOL_VERSION = "4";
-    public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation(JamMod.MODID, "main"),
-            () -> PROTOCOL_VERSION,
-            PROTOCOL_VERSION::equals,
-            PROTOCOL_VERSION::equals
-    );
 
-    private static int packetId = 0;
-    private static int id() { return packetId++; }
+    public static void register(final RegisterPayloadHandlerEvent event) {
+        JamMod.LOGGER.info("[JamMod] Registering 1.20.4 network payloads...");
 
-    public static void register() {
-        CHANNEL.messageBuilder(C2SJamActionPacket.class, id(), NetworkDirection.PLAY_TO_SERVER)
-                .encoder(C2SJamActionPacket::encode)
-                .decoder(C2SJamActionPacket::decode)
-                .consumerMainThread(C2SJamActionPacket::handle)
-                .add();
+        final IPayloadRegistrar registrar = event.registrar(JamMod.MODID)
+                .versioned("1.0.0")
+                .optional();
 
-        CHANNEL.messageBuilder(S2CSyncJamPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(S2CSyncJamPacket::encode)
-                .decoder(S2CSyncJamPacket::decode)
-                .consumerMainThread(S2CSyncJamPacket::handle)
-                .add();
+        // C2S (Serverbound)
+        registrar.play(
+                C2SJamActionPacket.ID,
+                C2SJamActionPacket::new,
+                handler -> handler.server(C2SJamActionPacket::handle)
+        );
 
-        CHANNEL.messageBuilder(S2CSyncJamListPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(S2CSyncJamListPacket::encode)
-                .decoder(S2CSyncJamListPacket::decode)
-                .consumerMainThread(S2CSyncJamListPacket::handle)
-                .add();
+        // S2C (Clientbound)
+        registrar.play(
+                S2CSyncJamPacket.ID,
+                S2CSyncJamPacket::new,
+                handler -> handler.client(S2CSyncJamPacket::handle)
+        );
 
-        CHANNEL.messageBuilder(S2CSetLocalVolumePacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(S2CSetLocalVolumePacket::encode)
-                .decoder(S2CSetLocalVolumePacket::decode)
-                .consumerMainThread(S2CSetLocalVolumePacket::handle)
-                .add();
+        registrar.play(
+                S2CSyncJamListPacket.ID,
+                S2CSyncJamListPacket::new,
+                handler -> handler.client(S2CSyncJamListPacket::handle)
+        );
 
-        CHANNEL.messageBuilder(S2CSetOverlayConfigPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(S2CSetOverlayConfigPacket::encode)
-                .decoder(S2CSetOverlayConfigPacket::decode)
-                .consumerMainThread(S2CSetOverlayConfigPacket::handle)
-                .add();
+        registrar.play(
+                S2CSetLocalVolumePacket.ID,
+                S2CSetLocalVolumePacket::new,
+                handler -> handler.client(S2CSetLocalVolumePacket::handle)
+        );
+
+        registrar.play(
+                S2CSetOverlayConfigPacket.ID,
+                S2CSetOverlayConfigPacket::new,
+                handler -> handler.client(S2CSetOverlayConfigPacket::handle)
+        );
     }
 
-    public static void sendToPlayer(ServerPlayer player, Object packet) {
-        CHANNEL.sendTo(packet, player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
+    public static void sendToPlayer(ServerPlayer player, CustomPacketPayload packet) {
+        PacketDistributor.PLAYER.with(player).send(packet);
+    }
+
+    public static void sendToServer(CustomPacketPayload packet) {
+        PacketDistributor.SERVER.noArg().send(packet);
     }
 }

@@ -1,15 +1,16 @@
 package com.skl.jammod.network;
 
+import com.skl.jammod.JamMod;
 import com.skl.jammod.client.ClientJamConfig;
 import com.skl.jammod.client.OverlayCorner;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.function.Supplier;
+public class S2CSetOverlayConfigPacket implements CustomPacketPayload {
+    public static final ResourceLocation ID = new ResourceLocation(JamMod.MODID + ":set_overlay_config");
 
-public class S2CSetOverlayConfigPacket {
     private final boolean toggle;
     private final boolean enabled;
     private final boolean setCorner;
@@ -22,6 +23,13 @@ public class S2CSetOverlayConfigPacket {
         this.corner = corner != null ? corner : OverlayCorner.TOP_RIGHT;
     }
 
+    public S2CSetOverlayConfigPacket(FriendlyByteBuf buf) {
+        this.toggle = buf.readBoolean();
+        this.enabled = buf.readBoolean();
+        this.setCorner = buf.readBoolean();
+        this.corner = buf.readEnum(OverlayCorner.class);
+    }
+
     public static S2CSetOverlayConfigPacket toggle() {
         return new S2CSetOverlayConfigPacket(true, false, false, OverlayCorner.TOP_RIGHT);
     }
@@ -30,32 +38,26 @@ public class S2CSetOverlayConfigPacket {
         return new S2CSetOverlayConfigPacket(false, false, true, corner);
     }
 
-    public static void encode(S2CSetOverlayConfigPacket msg, FriendlyByteBuf buf) {
-        buf.writeBoolean(msg.toggle);
-        buf.writeBoolean(msg.enabled);
-        buf.writeBoolean(msg.setCorner);
-        buf.writeEnum(msg.corner);
+    @Override
+    public ResourceLocation id() {
+        return ID;
     }
 
-    public static S2CSetOverlayConfigPacket decode(FriendlyByteBuf buf) {
-        return new S2CSetOverlayConfigPacket(
-                buf.readBoolean(),
-                buf.readBoolean(),
-                buf.readBoolean(),
-                buf.readEnum(OverlayCorner.class)
-        );
+    @Override
+    public void write(FriendlyByteBuf buf) {
+        buf.writeBoolean(this.toggle);
+        buf.writeBoolean(this.enabled);
+        buf.writeBoolean(this.setCorner);
+        buf.writeEnum(this.corner);
     }
 
-    public static void handle(S2CSetOverlayConfigPacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() ->
-                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
-                    if (msg.toggle) {
-                        ClientJamConfig.toggleOverlay();
-                    } else if (msg.setCorner) {
-                        ClientJamConfig.setOverlayCorner(msg.corner);
-                    }
-                })
-        );
-        ctx.get().setPacketHandled(true);
+    public static void handle(S2CSetOverlayConfigPacket msg, IPayloadContext ctx) {
+        ctx.workHandler().execute(() -> {
+            if (msg.toggle) {
+                ClientJamConfig.toggleOverlay();
+            } else if (msg.setCorner) {
+                ClientJamConfig.setOverlayCorner(msg.corner);
+            }
+        });
     }
 }

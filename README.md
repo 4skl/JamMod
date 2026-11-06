@@ -4,6 +4,19 @@ JamMod brings synchronized multiplayer music and audio streaming directly into M
 
 ---
 
+### Supported Versions & Loaders
+
+| Minecraft Version | Mod Loader | Minimum Loader Version |
+| :--- | :--- | :--- |
+| **1.18.2** | Forge | 40.2.0+ |
+| **1.19.2** | Forge | 43.3.0+ |
+| **1.19.4** | Forge | 45.2.0+ |
+| **1.20.1** | Forge | 47.1.0+ |
+| **1.20.4** | NeoForge | 20.4.190+ |
+| **1.21.1** | NeoForge | 21.1.65+ |
+
+---
+
 ### Features
 
 - **Zero-Drift Multiplayer Sync:** Server-authoritative timestamps keep track positions aligned for all listeners down to the millisecond. Pausing, resuming, and late-joining automatically align playback without audio drift.
@@ -32,69 +45,30 @@ JamMod brings synchronized multiplayer music and audio streaming directly into M
 
 ---
 
-### Requirements & Installation
+### Installation
 
 #### Client Side (Required):
-- Minecraft Forge (1.20.1 - 47.4.28+)
-- JamMod jar in your `.minecraft/mods` directory
+1. Install the appropriate mod loader for your Minecraft version (Forge or NeoForge).
+2. Drop the corresponding `JamMod-<loader>-<version>.jar` into your `.minecraft/mods` directory.
 
 #### Server Side (Required):
-- Minecraft Forge (1.20.1 - 47.4.28+)
-- JamMod jar in your server's `mods` directory
-- *No extra ports need to be forwarded; all synchronization runs through standard Minecraft packets.*
+1. Drop the corresponding `JamMod-<loader>-<version>.jar` into your server's `mods` directory.
+2. *No extra ports need to be opened or forwarded; all synchronization runs through standard Minecraft custom payload packets.*
 
 ---
 
-### Keybindings & Controls
+### Building from Source
 
-- **`J` (Default):** Open the Jam Session & Directory GUI.
+Build targets individually or all at once using the included build manager:
 
----
+```bash
+# Build all supported loader versions:
+./build_and_test.sh all
 
-### Commands Guide (`/jam`)
+# Build a single version (e.g., 1.20.1 or 1.20.4):
+./build_and_test.sh 1.20.1
+./build_and_test.sh 1.20.4
 
-All operations can be managed via the graphical interface or through chat commands. Required parameters are in `< >`, and optional parameters are in `[ ]`.
-
-#### Room & Directory Management
-| Command | Description |
-| :--- | :--- |
-| `/jam create <name> [true\|false]` | Create and join a new Jam. Set to `true` for Private. |
-| `/jam join <name\|id>` | Join an active Jam and sync playback. |
-| `/jam leave` | Disconnect from your current Jam session. |
-| `/jam list` | List all accessible Public and Private Jams (with clickable join links). |
-| `/jam delete <name>` | Delete a Jam room you own. |
-| `/jam status` | Display the active Jam's tracklist, host, role, and playback state. |
-
-#### Playback & Queue Controls
-| Command | Description |
-| :--- | :--- |
-| `/jam play [url]` | Play a URL immediately, or resume playback if paused. |
-| `/jam add <url>` | Append a media URL to the queue. |
-| `/jam pause` | Pause playback for all listeners in the room. |
-| `/jam resume` | Resume playback for all listeners in the room. |
-| `/jam toggle` | Toggle between play and pause. |
-| `/jam skip` | Skip to the next track in the queue. |
-| `/jam prev` | Jump back to the previous track. |
-| `/jam jump <index>` | Jump directly to track number `#` in the queue. |
-| `/jam move <from> <to>` | Reorder a track from one queue position to another. |
-| `/jam remove <index>` | Remove track `#` from the playlist. |
-| `/jam seek <seconds>` | Seek playback to a specific timestamp in the active track. |
-| `/jam repeat` | Cycle queue repeat mode: *Off*, *All*, or *One*. |
-| `/jam shuffle` | Toggle queue shuffle mode on or off. |
-
-#### Volume & HUD Settings
-| Command | Description |
-| :--- | :--- |
-| `/jam volume <0-100>` | Adjust local Minecraft Music volume directly (alias: `/jam vol`). |
-| `/jam overlay toggle` | Toggle the in-game HUD song overlay on or off. |
-| `/jam overlay corner <corner>` | Set overlay position (`top_right`, `top_left`, `bottom_right`, `bottom_left`). |
-
-#### Roles, Permissions & Invites
-| Command | Description |
-| :--- | :--- |
-| `/jam policy` | Cycle edit permissions (*Owner Only* / *Collaborators* / *Open to All*). |
-| `/jam privacy` | Toggle room visibility between Public and Private. |
-| `/jam role <player> <admin\|editor\|listener>` | Assign a role to a member (online or offline). |
-| `/jam invite <player>` | Send a clickable Jam invite to an online player. |
-| `/jam toggleinvites` | Toggle blocking/allowing incoming Jam invitations. |
-| `/jam help` | Display an interactive, clickable command guide. |
+# Launch test client:
+./build_and_test.sh run 1.20.4
+```

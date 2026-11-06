@@ -80,7 +80,7 @@ public class ClientAudioEngine {
                 @Override
                 public void onTrackEnd(AudioPlayer player, AudioTrack track, AudioTrackEndReason endReason) {
                     if (endReason == AudioTrackEndReason.FINISHED) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SKIP));
+                        ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SKIP));
                     }
                 }
             });
@@ -164,7 +164,7 @@ public class ClientAudioEngine {
             @Override
             public void trackLoaded(AudioTrack track) {
                 int durationSecs = (int) (track.getDuration() / 1000L);
-                ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                ModNetworking.sendToServer(new C2SJamActionPacket(
                         C2SJamActionPacket.Action.UPDATE_METADATA, "", track.getInfo().title, false, index, durationSecs));
             }
 
@@ -173,7 +173,7 @@ public class ClientAudioEngine {
                 if (!playlist.getTracks().isEmpty()) {
                     AudioTrack track = playlist.getSelectedTrack() != null ? playlist.getSelectedTrack() : playlist.getTracks().get(0);
                     int durationSecs = (int) (track.getDuration() / 1000L);
-                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
+                    ModNetworking.sendToServer(new C2SJamActionPacket(
                             C2SJamActionPacket.Action.UPDATE_METADATA, "", track.getInfo().title, false, index, durationSecs));
                 }
             }
