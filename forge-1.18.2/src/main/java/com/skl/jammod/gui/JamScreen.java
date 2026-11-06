@@ -72,6 +72,7 @@ public class JamScreen extends Screen {
         this.addRenderableWidget(btn(midX - 180, 8, 115, 20, new TextComponent("Now Playing"), b -> switchView(View.PLAYER)));
         this.addRenderableWidget(btn(midX - 60, 8, 120, 20, new TextComponent("Public Jams"), b -> switchView(View.DIRECTORY_PUBLIC)));
         this.addRenderableWidget(btn(midX + 65, 8, 115, 20, new TextComponent("My Jams"), b -> switchView(View.DIRECTORY_MY)));
+        this.addRenderableWidget(btn(this.width - 65, this.height - 24, 55, 18, new TextComponent("Close"), b -> this.onClose()));
 
         initViewWidgets();
     }

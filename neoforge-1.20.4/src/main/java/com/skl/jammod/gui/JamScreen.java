@@ -70,6 +70,10 @@ public class JamScreen extends Screen {
         this.addRenderableWidget(Button.builder(Component.literal("My Jams"), b -> switchView(View.DIRECTORY_MY))
                 .bounds(midX + 65, 8, 115, 20).build());
 
+        this.addRenderableWidget(Button.builder(Component.literal("Close"), b -> this.onClose())
+                .bounds(this.width - 65, this.height - 24, 55, 18)
+                .build());
+
         initViewWidgets();
     }
 
