@@ -1,74 +1,138 @@
 # JamMod
 
-JamMod brings synchronized multiplayer music and audio streaming directly into Minecraft.
+[![Minecraft Forge](https://img.shields.io/badge/Minecraft%20Forge-1.18.2%20|%201.19.2%20|%201.19.4%20|%201.20.1-orange.svg)](https://files.minecraftforge.net/)
+[![NeoForge](https://img.shields.io/badge/NeoForge-1.20.4%20|%201.21.1-red.svg)](https://neoforged.net/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+**JamMod** brings synchronized, zero-drift multiplayer audio and music streaming directly into Minecraft. Listen to synchronized YouTube, SoundCloud, direct audio streams, and radio with friends—without external Discord bots or third-party desktop apps.
 
 ---
 
-### Supported Versions & Loaders
+### Supported Minecraft & Loader Matrix
 
-| Minecraft Version | Mod Loader | Minimum Loader Version |
-| :--- | :--- | :--- |
-| **1.18.2** | Forge | 40.2.0+ |
-| **1.19.2** | Forge | 43.3.0+ |
-| **1.19.4** | Forge | 45.2.0+ |
-| **1.20.1** | Forge | 47.1.0+ |
-| **1.20.4** | NeoForge | 20.4.190+ |
-| **1.21.1** | NeoForge | 21.1.65+ |
+| Minecraft Version | Mod Loader | Minimum Loader Version | Stonecutter Target |
+| :--- | :--- | :--- | :--- |
+| **1.18.2** | Forge | 40.2.0+ | `1.18.2-forge` |
+| **1.19.2** | Forge | 43.3.0+ | `1.19.2-forge` |
+| **1.19.4** | Forge | 45.2.0+ | `1.19.4-forge` |
+| **1.20.1** | Forge | 47.1.0+ | `1.20.1-forge` |
+| **1.20.4** | NeoForge | 20.4.190+ | `1.20.4-neoforge` |
+| **1.21.1** | NeoForge | 21.1.65+ | `1.21.1-neoforge` |
 
 ---
 
-### Features
+### Getting Started
 
-- **Zero-Drift Multiplayer Sync:** Server-authoritative timestamps keep track positions aligned for all listeners down to the millisecond. Pausing, resuming, and late-joining automatically align playback without audio drift.
-- **Persistent Synced Jams:** Every room acts as a live, persistent playlist. Create a room, add media, and anyone in the session hears the same stream simultaneously.
-- **Public & Private Rooms:** Host Public Jams that appear in the server directory, or Private Jams restricted to whitelisted members.
-- **Tiered Role & Member Management:**
-  - **Host (Owner):** Full control over room privacy, deletion, edit policies, and member roles.
-  - **Admin:** Can cycle edit policies, invite players, manage roles (Editor/Listener), and remove lower-tier members.
-  - **Editor:** Can add, remove, and reorder tracks when the policy is set to *Collaborators* or *Open to All*.
-  - **Listener:** Streams in sync with the room.
-  - **Offline Member Support:** Manage disconnected players or register offline users by username.
-- **Configurable HUD Mini-Player:**
-  - Unobtrusive animated overlay displaying track title and icon when a song begins.
-  - Configurable in-game: toggle on/off and choose between four screen corners (`Top-Right`, `Top-Left`, `Bottom-Right`, `Bottom-Left`).
-  - Preferences persist locally in `config/jammod_client.json`.
-  - Display timer freezes while menus are open so track alerts are not missed.
-- **Timeline Scrubbing & Seekbar:** Click directly on the timeline bar in the GUI or use `/jam seek <seconds>` to jump to any point in the track across all listeners.
-- **Queue Modes & Reordering:**
-  - Loop All (`🔁`), Loop Single Track (`🔂`), and Shuffle (`🔀`).
-  - Move tracks up or down (`▲` / `▼`) in the queue.
-  - Metadata (title and duration) resolves automatically via Lavaplayer.
-- **Vanilla Music Volume Binding:** Linked directly to Minecraft's native `Music` volume slider via an in-GUI slider or the `/jam volume` command.
-- **Clickable Chat Links & Anti-Spam:** Room invites and directory listings feature clickable text to join rooms with one click. Built-in rate limits prevent spam, and players can opt out of invitations with `/jam toggleinvites`.
-- **Bandwidth Saver:** When all players leave a Jam, playback automatically idles to conserve server and network resources.
-- **Standalone Architecture:** Completely self-contained with no companion mods, external servers, or native binary installations required.
+#### 1. Open the Menu
+* Press **`J`** in-game to toggle the JamMod interface.
+* If no rooms exist on the server, an onboarding guide will walk you through launching your first session.
+
+#### 2. Create a Jam Session
+* Enter a room name and click **Create Jam**, or run:
+
+```
+
+/jam create  [private]
+
+```
+* **Public Jams** appear in the server directory for all players to discover and join.
+* **Private Jams** are hidden and require a direct invite from the Host or an Admin.
+
+#### 3. Add Music & Audio
+* Click **`[+ Add Track]`** and paste any stream URL.
+* Supported sources include:
+- **YouTube** (videos, live streams, and playlists)
+- **SoundCloud** tracks and playlists
+- **Bandcamp**, **Twitch Streams**, and direct web audio files (`.mp3`, `.ogg`, `.flac`, `.wav`).
+* Titles, artists, and song durations resolve automatically in the background.
+
+#### 4. Invite & Listen in Sync
+* Click **`[Invite]`** or use `/jam invite <player>`. Invited players receive a clickable chat invitation link.
+* Audio syncs down to the millisecond across every listener on the server.
+
+---
+
+### Role & Permission Hierarchy
+
+| Role | Permissions |
+| :--- | :--- |
+| **Host (Owner)** | Total room authority: toggle privacy, delete room, modify policies, transfer ownership, manage all roles. |
+| **Admin** | Room moderation: cycle room edit policies, invite players, promote/demote Editors and Listeners, remove members. |
+| **Editor** | Queue control: add songs, delete tracks, reorder queue (when allowed by room policy). |
+| **Listener** | Audio stream: listen along, vote skip, adjust personal local volume. |
+
+#### Edit Policies
+* **Host Only (`HOST_ONLY`):** Only the room owner and admins can add or reorder tracks.
+* **Collaborators (`COLLABORATORS`):** Hosts, Admins, and designated Editors can queue tracks.
+* **Open to All (`OPEN`):** Any listener can add tracks to the queue.
+
+---
+
+### In-Game Command Reference
+
+| Command | Description |
+| :--- | :--- |
+| `/jam` | Opens the graphical JamMod interface (or press **`J`**). |
+| `/jam list` | Displays all visible active jams on the server. |
+| `/jam create <name> [private]` | Creates a new Jam session (optionally private). |
+| `/jam join <name\|id>` | Joins an existing Jam room. |
+| `/jam leave` | Leaves your current Jam room. |
+| `/jam invite <player>` | Invites an online player to your session. |
+| `/jam add <url> [now]` | Adds a track to the queue (pass `true` to play immediately). |
+| `/jam play` / `/jam pause` | Resumes or pauses playback for everyone in the room. |
+| `/jam skip` | Skips to the next track in the queue. |
+| `/jam prev` | Restarts the current track or returns to the previous one. |
+| `/jam seek <seconds>` | Jumps playback to an exact timestamp for all listeners. |
+| `/jam volume <0-100>` | Adjusts your local JamMod volume (synced with Minecraft Music). |
+| `/jam hud [toggle\|corner]` | Configures the "Now Playing" HUD overlay on your screen. |
+| `/jam toggleinvites` | Toggles whether other players can send you room invitations. |
+
+---
+
+### Client HUD Mini-Player
+
+When a new track begins, an unobtrusive "Now Playing" notification appears in your chosen corner:
+* Displays the resolved track title along with the source URL subtext.
+* Fully customizable: Choose between `TOP_RIGHT`, `TOP_LEFT`, `BOTTOM_RIGHT`, or `BOTTOM_LEFT`.
+* The popup timer automatically freezes while menus or inventories are open so track notifications aren't missed.
+* Preferences persist locally in `.minecraft/config/jammod_client.json`.
 
 ---
 
 ### Installation
 
-#### Client Side (Required):
-1. Install the appropriate mod loader for your Minecraft version (Forge or NeoForge).
-2. Drop the corresponding `JamMod-<loader>-<version>.jar` into your `.minecraft/mods` directory.
+#### Client-Side
+1. Install **Forge** (1.18.2 – 1.20.1) or **NeoForge** (1.20.4 – 1.21.1).
+2. Drop the matching `JamMod-<version>.jar` into your `.minecraft/mods` directory.
 
-#### Server Side (Required):
-1. Drop the corresponding `JamMod-<loader>-<version>.jar` into your server's `mods` directory.
-2. *No extra ports need to be opened or forwarded; all synchronization runs through standard Minecraft custom payload packets.*
+#### Server-Side
+1. Place the matching `JamMod-<version>.jar` into your server's `mods` directory.
+2. **No extra ports need to be opened or forwarded**; all communication uses Minecraft custom network payloads.
 
 ---
 
 ### Building from Source
 
-Build targets individually or all at once using the included build manager:
+This project uses **Stonecutter** for multi-version management.
 
 ```bash
-# Build all supported loader versions:
-./build_and_test.sh all
+# Clone the repository
+git clone [https://github.com/mediolivier/JamMod.git](https://github.com/mediolivier/JamMod.git)
+cd JamMod
 
-# Build a single version (e.g., 1.20.1 or 1.20.4):
-./build_and_test.sh 1.20.1
-./build_and_test.sh 1.20.4
+# Switch active Stonecutter project to any version:
+./gradlew "Set active project to 1.20.4-neoforge"
+./gradlew "Set active project to 1.21.1-neoforge"
+./gradlew "Set active project to 1.20.1-forge"
 
-# Launch test client:
-./build_and_test.sh run 1.20.4
+# Compile and build the active version JAR:
+./gradlew build
+
+# Run the test client for the active target:
+./gradlew runClient
+
 ```
+
+### License
+
+Distributed under the **MIT License**. See `LICENSE` for details.

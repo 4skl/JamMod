@@ -9,7 +9,11 @@ import com.skl.jammod.network.S2CSyncJamListPacket;
 import com.skl.jammod.network.S2CSyncJamPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+//? if >1.20.1 {
+/*import net.neoforged.fml.loading.FMLPaths;
+*///?} else {
 import net.minecraftforge.fml.loading.FMLPaths;
+ //?}
 
 import java.io.Reader;
 import java.io.Writer;

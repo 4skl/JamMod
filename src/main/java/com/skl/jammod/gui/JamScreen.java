@@ -1,439 +1,857 @@
 package com.skl.jammod.gui;
 
-import com.skl.jammod.client.ClientAudioEngine;
-import com.skl.jammod.client.ClientJamConfig;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.skl.jammod.client.ClientJamManager;
 import com.skl.jammod.network.C2SJamActionPacket;
 import com.skl.jammod.network.ModNetworking;
-import com.skl.jammod.network.S2CSyncJamListPacket.JamSummary;
+import com.skl.jammod.network.S2CSyncJamListPacket;
+import com.skl.jammod.session.JamEditPolicy;
 import com.skl.jammod.session.JamTrack;
 import com.skl.jammod.session.SyncedJam;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
-import net.minecraft.sounds.SoundSource;
-import org.lwjgl.glfw.GLFW;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
+
+//? if >=1.20 {
+import net.minecraft.client.gui.GuiGraphics;
+//?} else {
+/*import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.GuiComponent;
+*///?}
+
+//? if <=1.18.2 {
+/*import net.minecraft.network.chat.TextComponent;
+ *///?}
 
 public class JamScreen extends Screen {
-    public enum View { PLAYER, ADD_TRACK, SETTINGS, ROLES, INVITE, DIRECTORY_PUBLIC, DIRECTORY_MY, CREATE_JAM }
-    private View currentView = View.PLAYER;
+    public enum Tab {
+        QUEUE, MEMBERS, SETTINGS
+    }
 
-    private EditBox inputField;
-    private EditBox titleField;
-    private EditBox addMemberField;
-    private boolean createAsPrivate = false;
+    private Tab currentTab = Tab.QUEUE;
+    private boolean createIsPrivate = false;
+    private boolean playNowFlag = false;
 
-    private int page = 0;
-    private static final int ITEMS_PER_PAGE = 5;
+    // Header & Global Buttons
+    private Button refreshBtn;
+    private Button leaveBtn;
 
-    // Responsive pagination controls
-    private Button prevPageBtn;
-    private Button nextPageBtn;
+    // Tab Navigation Buttons
+    private Button queueTabBtn;
+    private Button membersTabBtn;
+    private Button settingsTabBtn;
 
-    // Dynamic buttons
-    private Button playPauseButton;
-    private Button repeatButton;
-    private Button shuffleButton;
-    private Button policyButton;
-    private Button privacyButton;
-    private Button overlayToggleBtn;
-    private Button overlayCornerBtn;
-    private AbstractSliderButton volumeSlider;
+    // Tab 1: Queue Widgets
+    private EditBox urlInput;
+    private Button addBtn;
+    private Button playNowBtn;
+
+    // Tab 2: Members Widgets
+    private EditBox inviteInput;
+    private Button inviteBtn;
+
+    // Tab 3: Settings Widgets
+    private Button privacyBtn;
+    private Button policyBtn;
+    private Button deleteJamBtn;
+
+    // Player Bar Controls
+    private Button prevBtn;
+    private Button togglePlayBtn;
+    private Button skipBtn;
+    private Button repeatBtn;
+    private Button shuffleBtn;
+
+    // Directory View Widgets
+    private EditBox nameInput;
+    private Button createPrivacyBtn;
+    private Button createBtn;
+    private Button closeBtn;
+
+    // Scroll Offsets
+    private int queueScrollOffset = 0;
+    private int membersScrollOffset = 0;
+    private int directoryScrollOffset = 0;
 
     public JamScreen() {
-        super(Component.literal("Jam Session Manager"));
+        //? if >=1.19 {
+        super(Component.literal("JamMod"));
+        //?} else {
+        /*super(new TextComponent("JamMod"));
+         *///?}
+    }
+
+    private static Component text(String s) {
+        //? if >=1.19 {
+        return Component.literal(s);
+        //?} else {
+        /*return new TextComponent(s);
+         *///?}
+    }
+
+    private Button createButton(Component message, int x, int y, int width, int height, Button.OnPress onPress) {
+        //? if >=1.19.3 {
+        return Button.builder(message, onPress).bounds(x, y, width, height).build();
+        //?} else {
+        /*return new Button(x, y, width, height, message, onPress);
+         *///?}
     }
 
     @Override
     protected void init() {
-        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.REQUEST_SYNC));
+        super.init();
+        ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.REQUEST_SYNC));
 
-        if (!ClientJamManager.isInJam() && (currentView == View.PLAYER || currentView == View.ADD_TRACK || currentView == View.SETTINGS || currentView == View.ROLES || currentView == View.INVITE)) {
-            currentView = View.DIRECTORY_PUBLIC;
-        }
+        int centerX = this.width / 2;
 
-        int midX = this.width / 2;
+        // --- Global Navigation ---
+        closeBtn = createButton(text("✕"), this.width - 24, 8, 18, 18, b -> this.onClose());
+        this.addRenderableWidget(closeBtn);
 
-        this.addRenderableWidget(Button.builder(Component.literal("Now Playing"), b -> switchView(View.PLAYER))
-                .bounds(midX - 180, 8, 115, 20).build());
+        refreshBtn = createButton(text("Refresh"), this.width - 82, 8, 55, 18, b -> {
+            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.REQUEST_SYNC));
+        });
+        this.addRenderableWidget(refreshBtn);
 
-        this.addRenderableWidget(Button.builder(Component.literal("Public Jams"), b -> switchView(View.DIRECTORY_PUBLIC))
-                .bounds(midX - 60, 8, 120, 20).build());
+        leaveBtn = createButton(text("Leave"), this.width - 140, 8, 55, 18, b -> {
+            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.LEAVE_JAM));
+            this.onClose();
+        });
+        this.addRenderableWidget(leaveBtn);
 
-        this.addRenderableWidget(Button.builder(Component.literal("My Jams"), b -> switchView(View.DIRECTORY_MY))
-                .bounds(midX + 65, 8, 115, 20).build());
+        // Tab Navigation Buttons
+        queueTabBtn = createButton(text("🎵 Queue"), 10, 6, 65, 18, b -> {
+            currentTab = Tab.QUEUE;
+            updateVisibilities();
+        });
+        this.addRenderableWidget(queueTabBtn);
 
-        initViewWidgets();
+        membersTabBtn = createButton(text("👥 Members"), 78, 6, 75, 18, b -> {
+            currentTab = Tab.MEMBERS;
+            updateVisibilities();
+        });
+        this.addRenderableWidget(membersTabBtn);
+
+        settingsTabBtn = createButton(text("⚙ Settings"), 156, 6, 65, 18, b -> {
+            currentTab = Tab.SETTINGS;
+            updateVisibilities();
+        });
+        this.addRenderableWidget(settingsTabBtn);
+
+        // Tab 1: Queue Widgets
+        urlInput = new EditBox(this.font, 10, this.height - 76, this.width - 180, 18, text("Stream URL"));
+        urlInput.setMaxLength(2048);
+        this.addRenderableWidget(urlInput);
+
+        playNowBtn = createButton(text(playNowFlag ? "▶ Now" : "⏳ Queue"), this.width - 165, this.height - 76, 55, 18, b -> {
+            playNowFlag = !playNowFlag;
+            playNowBtn.setMessage(text(playNowFlag ? "▶ Now" : "⏳ Queue"));
+        });
+        this.addRenderableWidget(playNowBtn);
+
+        addBtn = createButton(text("+ Add Track"), this.width - 105, this.height - 76, 95, 18, b -> {
+            String url = urlInput.getValue().trim();
+            if (!url.isEmpty()) {
+                ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.ADD_TRACK, "", url, playNowFlag, 0));
+                urlInput.setValue("");
+            }
+        });
+        this.addRenderableWidget(addBtn);
+
+        // Tab 2: Members Widgets
+        inviteInput = new EditBox(this.font, 10, this.height - 76, this.width - 130, 18, text("Player Name"));
+        inviteInput.setMaxLength(32);
+        this.addRenderableWidget(inviteInput);
+
+        inviteBtn = createButton(text("✉ Invite Player"), this.width - 115, this.height - 76, 105, 18, b -> {
+            String name = inviteInput.getValue().trim();
+            if (!name.isEmpty()) {
+                ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.INVITE_PLAYER, "", name));
+                inviteInput.setValue("");
+            }
+        });
+        this.addRenderableWidget(inviteBtn);
+
+        // Tab 3: Settings Widgets
+        privacyBtn = createButton(text("Privacy: " + (ClientJamManager.isPrivate() ? "Private" : "Public")), centerX - 100, 48, 200, 20, b -> {
+            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_PRIVACY));
+        });
+        this.addRenderableWidget(privacyBtn);
+
+        policyBtn = createButton(text("Edit Policy: " + ClientJamManager.getEditPolicy().name()), centerX - 100, 74, 200, 20, b -> {
+            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SET_POLICY));
+        });
+        this.addRenderableWidget(policyBtn);
+
+        deleteJamBtn = createButton(text("🗑 Delete Jam Room"), centerX - 100, 106, 200, 20, b -> {
+            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.DELETE_JAM, ClientJamManager.getJamId()));
+            this.onClose();
+        });
+        this.addRenderableWidget(deleteJamBtn);
+
+        // Bottom Player Bar Controls
+        int playerBarY = this.height - 18;
+        prevBtn = createButton(text("⏮"), centerX - 42, playerBarY, 24, 15, b -> {
+            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.PREVIOUS));
+        });
+        this.addRenderableWidget(prevBtn);
+
+        togglePlayBtn = createButton(text(ClientJamManager.isPlaying() ? "⏸" : "▶"), centerX - 15, playerBarY, 30, 15, b -> {
+            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_PLAY));
+        });
+        this.addRenderableWidget(togglePlayBtn);
+
+        skipBtn = createButton(text("⏭"), centerX + 18, playerBarY, 24, 15, b -> {
+            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SKIP));
+        });
+        this.addRenderableWidget(skipBtn);
+
+        repeatBtn = createButton(text(getRepeatLabel()), 10, playerBarY, 52, 15, b -> {
+            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.CYCLE_REPEAT));
+        });
+        this.addRenderableWidget(repeatBtn);
+
+        shuffleBtn = createButton(text(ClientJamManager.isShuffle() ? "🔀 ON" : "🔀 OFF"), 65, playerBarY, 48, 15, b -> {
+            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_SHUFFLE));
+        });
+        this.addRenderableWidget(shuffleBtn);
+
+        // Directory View Widgets
+        nameInput = new EditBox(this.font, 10, this.height - 25, this.width - 200, 18, text("Jam Name"));
+        nameInput.setMaxLength(32);
+        this.addRenderableWidget(nameInput);
+
+        createPrivacyBtn = createButton(text(createIsPrivate ? "🔒 Private" : "🌐 Public"), this.width - 185, this.height - 25, 75, 18, b -> {
+            createIsPrivate = !createIsPrivate;
+            createPrivacyBtn.setMessage(text(createIsPrivate ? "🔒 Private" : "🌐 Public"));
+        });
+        this.addRenderableWidget(createPrivacyBtn);
+
+        createBtn = createButton(text("Create Jam"), this.width - 105, this.height - 25, 95, 18, b -> {
+            String name = nameInput.getValue().trim();
+            if (!name.isEmpty()) {
+                ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.CREATE_JAM, "", name, createIsPrivate, 0));
+                nameInput.setValue("");
+            }
+        });
+        this.addRenderableWidget(createBtn);
+
+        updateVisibilities();
     }
 
-    private void switchView(View view) {
-        this.currentView = view;
-        this.page = 0;
-        this.clearWidgets();
-        init();
-    }
-
-    private int getPaginationY() {
-        return switch (currentView) {
-            case PLAYER -> 204;
-            case ROLES -> 176;
-            case INVITE -> 180;
-            case DIRECTORY_PUBLIC, DIRECTORY_MY -> 188;
-            default -> 190;
+    private String getRepeatLabel() {
+        SyncedJam.RepeatMode mode = ClientJamManager.getRepeatMode();
+        if (mode == null) return "🔁 OFF";
+        return switch (mode) {
+            case ALL -> "🔁 ALL";
+            case ONE -> "🔂 ONE";
+            default -> "🔁 OFF";
         };
     }
 
-    private void initViewWidgets() {
-        int midX = this.width / 2;
+    private void updateVisibilities() {
+        boolean inJam = ClientJamManager.isInJam();
+        boolean canEdit = ClientJamManager.canEdit();
+        boolean isOwner = ClientJamManager.isOwner();
+        boolean canManage = ClientJamManager.canManage();
 
-        // Centered pagination controls positioned directly under list items
-        if (currentView == View.PLAYER || currentView == View.INVITE || currentView == View.DIRECTORY_PUBLIC || currentView == View.DIRECTORY_MY || currentView == View.ROLES) {
-            int py = getPaginationY();
-            this.prevPageBtn = Button.builder(Component.literal("◄ Prev"), b -> { if (page > 0) page--; })
-                    .bounds(midX - 75, py, 48, 16).build();
-            this.nextPageBtn = Button.builder(Component.literal("Next ►"), b -> page++)
-                    .bounds(midX + 27, py, 48, 16).build();
-            this.addRenderableWidget(prevPageBtn);
-            this.addRenderableWidget(nextPageBtn);
+        // Header
+        refreshBtn.visible = true;
+        leaveBtn.visible = inJam;
+        queueTabBtn.visible = inJam;
+        membersTabBtn.visible = inJam;
+        settingsTabBtn.visible = inJam;
+
+        if (inJam) {
+            queueTabBtn.setMessage(text("🎵 Queue (" + ClientJamManager.getTracks().size() + ")"));
+            membersTabBtn.setMessage(text("👥 Members (" + ClientJamManager.getMembers().size() + ")"));
         }
 
-        switch (currentView) {
-            case PLAYER -> {
-                if (!ClientJamManager.isInJam()) return;
+        // Tab 1: Queue
+        boolean showQueue = inJam && currentTab == Tab.QUEUE;
+        urlInput.visible = showQueue && canEdit;
+        addBtn.visible = showQueue && canEdit;
+        playNowBtn.visible = showQueue && canEdit;
 
-                if (ClientJamManager.canEdit()) {
-                    this.addRenderableWidget(Button.builder(Component.literal("➕ Add"), b -> switchView(View.ADD_TRACK))
-                            .bounds(midX - 180, 32, 55, 18).build());
+        // Tab 2: Members
+        boolean showMembers = inJam && currentTab == Tab.MEMBERS;
+        inviteInput.visible = showMembers && canManage;
+        inviteBtn.visible = showMembers && canManage;
 
-                    this.addRenderableWidget(Button.builder(Component.literal("⏮"), b ->
-                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.PREVIOUS))
-                    ).bounds(midX - 120, 32, 24, 18).build());
+        // Tab 3: Settings
+        boolean showSettings = inJam && currentTab == Tab.SETTINGS;
+        privacyBtn.visible = showSettings && isOwner;
+        privacyBtn.setMessage(text("Privacy: " + (ClientJamManager.isPrivate() ? "Private" : "Public")));
+        policyBtn.visible = showSettings && canManage;
+        policyBtn.setMessage(text("Edit Policy: " + ClientJamManager.getEditPolicy().name()));
+        deleteJamBtn.visible = showSettings && isOwner;
 
-                    playPauseButton = Button.builder(Component.literal(ClientJamManager.isPlaying() ? "⏸" : "▶"), b ->
-                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_PLAY))
-                    ).bounds(midX - 93, 32, 24, 18).build();
-                    this.addRenderableWidget(playPauseButton);
+        // Bottom Player Bar
+        prevBtn.visible = inJam && canEdit;
+        togglePlayBtn.visible = inJam && canEdit;
+        togglePlayBtn.setMessage(text(ClientJamManager.isPlaying() ? "⏸" : "▶"));
+        skipBtn.visible = inJam && canEdit;
+        repeatBtn.visible = inJam && canEdit;
+        repeatBtn.setMessage(text(getRepeatLabel()));
+        shuffleBtn.visible = inJam && canEdit;
+        shuffleBtn.setMessage(text(ClientJamManager.isShuffle() ? "🔀 ON" : "🔀 OFF"));
 
-                    this.addRenderableWidget(Button.builder(Component.literal("⏭"), b ->
-                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SKIP))
-                    ).bounds(midX - 66, 32, 24, 18).build());
+        // Directory View
+        nameInput.visible = !inJam;
+        createPrivacyBtn.visible = !inJam;
+        createBtn.visible = !inJam;
+    }
 
-                    String repSymbol = switch (ClientJamManager.getRepeatMode()) {
-                        case ALL -> "🔁";
-                        case ONE -> "🔂";
-                        default -> "➡";
-                    };
-                    repeatButton = Button.builder(Component.literal(repSymbol), b ->
-                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.CYCLE_REPEAT))
-                    ).bounds(midX - 39, 32, 24, 18).tooltip(Tooltip.create(Component.literal("Repeat Mode: Off / All / One"))).build();
-                    this.addRenderableWidget(repeatButton);
+    private long getCurrentDuration() {
+        int idx = ClientJamManager.getCurrentTrackIndex();
+        List<JamTrack> tracks = ClientJamManager.getTracks();
+        if (idx >= 0 && idx < tracks.size()) {
+            return tracks.get(idx).getDurationMs();
+        }
+        return 0L;
+    }
 
-                    shuffleButton = Button.builder(Component.literal(ClientJamManager.isShuffle() ? "§a🔀" : "§7🔀"), b ->
-                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_SHUFFLE))
-                    ).bounds(midX - 12, 32, 24, 18).tooltip(Tooltip.create(Component.literal("Toggle Shuffle"))).build();
-                    this.addRenderableWidget(shuffleButton);
-                }
+    private static String formatTime(long ms) {
+        if (ms <= 0) return "00:00";
+        long totalSec = ms / 1000L;
+        long min = totalSec / 60L;
+        long sec = totalSec % 60L;
+        return String.format("%02d:%02d", min, sec);
+    }
 
-                this.addRenderableWidget(Button.builder(Component.literal("👥"), b -> switchView(View.INVITE))
-                        .bounds(midX + 16, 32, 24, 18).tooltip(Tooltip.create(Component.literal("Invite Online Players"))).build());
+    //? if >=1.20 {
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        this.renderBackground(graphics, mouseX, mouseY, partialTick);
+        //?} else {
+    /*@Override
+    public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
+        this.renderBackground(poseStack);
+    *///?}
+        updateVisibilities();
 
-                // Settings button (Available to all for Client HUD settings, + Room settings if Host/Admin)
-                this.addRenderableWidget(Button.builder(Component.literal("⚙"), b -> switchView(View.SETTINGS))
-                        .bounds(midX + 43, 32, 24, 18).tooltip(Tooltip.create(Component.literal("Settings & Preferences"))).build());
+        boolean inJam = ClientJamManager.isInJam();
 
-                this.addRenderableWidget(Button.builder(Component.literal("Leave"), b -> {
-                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.LEAVE_JAM));
-                    switchView(View.DIRECTORY_PUBLIC);
-                }).bounds(midX + 130, 32, 50, 18).build());
+        if (inJam) {
+            renderSession(
+                    //? if >=1.20 {
+                    graphics,
+                    //?} else {
+                    /*poseStack,
+                     *///?}
+                    mouseX, mouseY
+            );
+        } else {
+            renderDirectory(
+                    //? if >=1.20 {
+                    graphics,
+                    //?} else {
+                    /*poseStack,
+                     *///?}
+                    mouseX, mouseY
+            );
+        }
 
-                // Minecraft Music Volume Slider
-                Minecraft mc = Minecraft.getInstance();
-                double currentMusic = mc.options.getSoundSourceVolume(SoundSource.MUSIC);
-                this.volumeSlider = new AbstractSliderButton(midX - 180, this.height - 18, 130, 14,
-                        Component.literal("Music: " + Math.round(currentMusic * 100) + "%"), currentMusic) {
-                    @Override
-                    protected void updateMessage() {
-                        this.setMessage(Component.literal("Music: " + Math.round(this.value * 100) + "%"));
-                    }
+        //? if >=1.20 {
+        super.render(graphics, mouseX, mouseY, partialTick);
+        //?} else {
+        /*super.render(poseStack, mouseX, mouseY, partialTick);
+         *///?}
+    }
 
-                    @Override
-                    protected void applyValue() {
-                        Minecraft mc = Minecraft.getInstance();
-                        mc.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(this.value);
-                        mc.options.save();
-                        ClientAudioEngine.updateVolume();
-                    }
-                };
-                this.addRenderableWidget(volumeSlider);
+    // Session Rendering (Inside a Jam)
+    //? if >=1.20 {
+    private void renderSession(GuiGraphics graphics, int mouseX, int mouseY) {
+        //?} else {
+        /*private void renderSession(PoseStack poseStack, int mouseX, int mouseY) {
+         *///?}
+        int centerX = this.width / 2;
+
+        // Render Active Tab Content
+        switch (currentTab) {
+            case QUEUE -> renderQueueTab(
+                    //? if >=1.20 {
+                    graphics,
+                    //?} else {
+                    /*poseStack,
+                     *///?}
+                    mouseX, mouseY
+            );
+            case MEMBERS -> renderMembersTab(
+                    //? if >=1.20 {
+                    graphics,
+                    //?} else {
+                    /*poseStack,
+                     *///?}
+                    mouseX, mouseY
+            );
+            case SETTINGS -> renderSettingsTab(
+                    //? if >=1.20 {
+                    graphics
+                    //?} else {
+                    /*poseStack
+                     *///?}
+            );
+        }
+
+        // Fixed Bottom Player Bar
+        int barH = 50;
+        int barY = this.height - barH;
+
+        //? if >=1.20 {
+        graphics.fill(0, barY, this.width, this.height, 0xEE111111);
+        graphics.fill(0, barY, this.width, barY + 1, 0xFFFFAA00);
+        //?} else {
+        /*GuiComponent.fill(poseStack, 0, barY, this.width, this.height, 0xEE111111);
+        GuiComponent.fill(poseStack, 0, barY, this.width, barY + 1, 0xFFFFAA00);
+        *///?}
+
+        // --- Player Header (Now Playing & Link Subtext) ---
+        String url = ClientJamManager.getCurrentTrackUrl();
+        int idx = ClientJamManager.getCurrentTrackIndex();
+        List<JamTrack> trackList = ClientJamManager.getTracks();
+
+        String trackTitle = "";
+        String trackUrl = ClientJamManager.getCurrentTrackUrl();
+
+        // Pull title from the active queue track first
+        if (idx >= 0 && idx < trackList.size()) {
+            JamTrack current = trackList.get(idx);
+            if (current.getTitle() != null && !current.getTitle().isBlank()) {
+                trackTitle = current.getTitle();
             }
-
-            case ADD_TRACK -> {
-                this.inputField = new EditBox(this.font, midX - 180, 50, 360, 20, Component.literal("Media URL"));
-                this.inputField.setMaxLength(1024);
-                this.inputField.setHint(Component.literal("Paste YouTube / Media URL..."));
-                this.addRenderableWidget(inputField);
-
-                this.titleField = new EditBox(this.font, midX - 180, 78, 360, 20, Component.literal("Song Title"));
-                this.titleField.setMaxLength(128);
-                this.titleField.setHint(Component.literal("Optional Title (auto-resolves from web if empty)"));
-                this.addRenderableWidget(titleField);
-
-                this.addRenderableWidget(Button.builder(Component.literal("▶ Play Now"), b -> {
-                    String url = inputField.getValue().trim();
-                    if (!url.isEmpty()) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                                C2SJamActionPacket.Action.ADD_TRACK, titleField.getValue().trim(), url, true, 0));
-                        switchView(View.PLAYER);
-                    }
-                }).bounds(midX - 180, 108, 115, 20).build());
-
-                this.addRenderableWidget(Button.builder(Component.literal("➕ Queue"), b -> {
-                    String url = inputField.getValue().trim();
-                    if (!url.isEmpty()) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                                C2SJamActionPacket.Action.ADD_TRACK, titleField.getValue().trim(), url, false, 0));
-                        switchView(View.PLAYER);
-                    }
-                }).bounds(midX - 60, 108, 115, 20).build());
-
-                this.addRenderableWidget(Button.builder(Component.literal("← Back"), b -> switchView(View.PLAYER))
-                        .bounds(midX + 60, 108, 120, 20).build());
-            }
-
-            case SETTINGS -> {
-                // Client HUD Settings (Available to all)
-                this.overlayToggleBtn = Button.builder(Component.literal("HUD Overlay: " + (ClientJamConfig.isOverlayEnabled() ? "§aON" : "§cOFF")), b -> {
-                    ClientJamConfig.toggleOverlay();
-                    b.setMessage(Component.literal("HUD Overlay: " + (ClientJamConfig.isOverlayEnabled() ? "§aON" : "§cOFF")));
-                }).bounds(midX - 180, 48, 175, 20).tooltip(Tooltip.create(Component.literal("Toggle whether the in-game song notification overlay appears."))).build();
-                this.addRenderableWidget(overlayToggleBtn);
-
-                this.overlayCornerBtn = Button.builder(Component.literal("HUD Position: §e" + ClientJamConfig.getOverlayCorner().getDisplayName()), b -> {
-                    ClientJamConfig.cycleOverlayCorner();
-                    b.setMessage(Component.literal("HUD Position: §e" + ClientJamConfig.getOverlayCorner().getDisplayName()));
-                }).bounds(midX + 5, 48, 175, 20).tooltip(Tooltip.create(Component.literal("Cycle screen corner: Top-Right, Top-Left, Bottom-Right, Bottom-Left."))).build();
-                this.addRenderableWidget(overlayCornerBtn);
-
-                // Room Settings (Host / Admin only)
-                if (ClientJamManager.canManage()) {
-                    if (ClientJamManager.isOwner()) {
-                        privacyButton = Button.builder(Component.literal("Privacy: " + (ClientJamManager.isPrivate() ? "§cPrivate" : "§aPublic")), b ->
-                                ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_PRIVACY))
-                        ).bounds(midX - 180, 80, 175, 20).tooltip(Tooltip.create(Component.literal("Toggle whether this Jam appears in the Public directory."))).build();
-                        this.addRenderableWidget(privacyButton);
-                    }
-
-                    policyButton = Button.builder(Component.literal("Policy: §e" + ClientJamManager.getEditPolicy().getDisplayName()), b ->
-                                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SET_POLICY))
-                            ).bounds(midX + (ClientJamManager.isOwner() ? 5 : -180), 80, ClientJamManager.isOwner() ? 175 : 360, 20)
-                            .tooltip(Tooltip.create(Component.literal("Cycle who can edit: Owner & Admins, Collaborators, or Open to All."))).build();
-                    this.addRenderableWidget(policyButton);
-
-                    this.addRenderableWidget(Button.builder(Component.literal("👥 Manage Member Roles"), b -> switchView(View.ROLES))
-                            .bounds(midX - 180, 108, 175, 20).build());
-
-                    if (ClientJamManager.isOwner()) {
-                        this.addRenderableWidget(Button.builder(Component.literal("§cDelete Jam"), b -> {
-                            ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                                    C2SJamActionPacket.Action.DELETE_JAM, ClientJamManager.getJamId()));
-                            switchView(View.DIRECTORY_PUBLIC);
-                        }).bounds(midX + 5, 108, 175, 20).build());
-                    }
-                }
-
-                this.addRenderableWidget(Button.builder(Component.literal("← Back to Player"), b -> switchView(View.PLAYER))
-                        .bounds(midX - 180, 136, 360, 20).build());
-            }
-
-            case ROLES -> {
-                this.addRenderableWidget(Button.builder(Component.literal("← Back"), b -> switchView(View.SETTINGS))
-                        .bounds(midX - 180, 32, 55, 18).build());
-
-                this.addMemberField = new EditBox(this.font, midX - 120, 32, 210, 18, Component.literal("Username"));
-                this.addMemberField.setMaxLength(32);
-                this.addMemberField.setHint(Component.literal("Add Member by Username..."));
-                this.addRenderableWidget(addMemberField);
-
-                this.addRenderableWidget(Button.builder(Component.literal("➕ Add"), b -> {
-                    String name = addMemberField.getValue().trim();
-                    if (!name.isEmpty()) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                                C2SJamActionPacket.Action.ADD_MEMBER_BY_NAME, "", name));
-                        addMemberField.setValue("");
-                    }
-                }).bounds(midX + 95, 32, 85, 18).build());
-            }
-
-            case INVITE -> {
-                this.addRenderableWidget(Button.builder(Component.literal("← Back to Player"), b -> switchView(View.PLAYER))
-                        .bounds(midX - 180, 32, 120, 18).build());
-            }
-
-            case DIRECTORY_PUBLIC, DIRECTORY_MY -> {
-                if (currentView == View.DIRECTORY_MY) {
-                    this.addRenderableWidget(Button.builder(Component.literal("✨ Create New Jam"), b -> switchView(View.CREATE_JAM))
-                            .bounds(midX - 180, 32, 150, 18).build());
-                }
-            }
-
-            case CREATE_JAM -> {
-                this.inputField = new EditBox(this.font, midX - 180, 55, 360, 20, Component.literal("Jam Name"));
-                this.inputField.setMaxLength(64);
-                this.inputField.setHint(Component.literal("Enter Jam Name..."));
-                this.addRenderableWidget(inputField);
-
-                this.addRenderableWidget(Button.builder(Component.literal(createAsPrivate ? "Type: §cPrivate" : "Type: §aPublic"), b -> {
-                    createAsPrivate = !createAsPrivate;
-                    b.setMessage(Component.literal(createAsPrivate ? "Type: §cPrivate" : "Type: §aPublic"));
-                }).bounds(midX - 180, 85, 115, 20).build());
-
-                this.addRenderableWidget(Button.builder(Component.literal("Create & Join"), b -> {
-                    String name = inputField.getValue().trim();
-                    if (!name.isEmpty()) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                                C2SJamActionPacket.Action.CREATE_JAM, "", name, createAsPrivate, 0));
-                        switchView(View.PLAYER);
-                    }
-                }).bounds(midX - 60, 85, 120, 20).build());
-
-                this.addRenderableWidget(Button.builder(Component.literal("Cancel"), b -> switchView(View.DIRECTORY_MY))
-                        .bounds(midX + 65, 85, 115, 20).build());
+            if (trackUrl.isEmpty()) {
+                trackUrl = current.getUrl();
             }
         }
+
+        if (trackTitle.isEmpty()) {
+            trackTitle = ClientJamManager.getCurrentTrackTitle();
+        }
+
+        String displayTitle = !trackTitle.isEmpty() ? trackTitle : (!trackUrl.isEmpty() ? trackUrl : "No track playing");
+        if (displayTitle.length() > 42) displayTitle = displayTitle.substring(0, 40) + "...";
+
+        long dur = getCurrentDuration();
+        long pos = ClientJamManager.isPlaying() ? (System.currentTimeMillis() - ClientJamManager.getStartTimestamp()) : 0L;
+        if (dur > 0 && pos > dur) pos = dur;
+        if (pos < 0) pos = 0;
+
+        String timeStr = formatTime(pos) + " / " + formatTime(dur);
+
+        // Line 1: Track Title & Time
+        //? if >=1.20 {
+        graphics.drawString(this.font, "§6🎵 Now Playing: §f" + displayTitle, 10, barY + 4, 0xFFFFFF);
+        graphics.drawString(this.font, "§e" + timeStr, this.width - this.font.width(timeStr) - 10, barY + 4, 0xFFFFFF);
+        //?} else {
+        /*this.font.draw(poseStack, "§6🎵 Now Playing: §f" + displayTitle, 10, barY + 4, 0xFFFFFF);
+        this.font.draw(poseStack, "§e" + timeStr, this.width - this.font.width(timeStr) - 10, barY + 4, 0xFFFFFF);
+        *///?}
+
+        // Line 2: Played Song Subtext as Link
+        if (!url.isEmpty()) {
+            String displayUrl = url.length() > 55 ? url.substring(0, 52) + "..." : url;
+            //? if >=1.20 {
+            graphics.drawString(this.font, "§7🔗 " + displayUrl, 10, barY + 15, 0x888888);
+            //?} else {
+            /*this.font.draw(poseStack, "§7🔗 " + displayUrl, 10, barY + 15, 0x888888);
+             *///?}
+        }
+
+        // Timeline Progress Bar
+        int progressX = 10;
+        int progressW = this.width - 20;
+        int progressY = barY + 25;
+
+        //? if >=1.20 {
+        graphics.fill(progressX, progressY, progressX + progressW, progressY + 4, 0xFF333333);
+        if (dur > 0) {
+            int filled = (int) (((double) pos / dur) * progressW);
+            graphics.fill(progressX, progressY, progressX + filled, progressY + 4, 0xFFFFAA00);
+            graphics.fill(progressX + filled - 1, progressY - 1, progressX + filled + 2, progressY + 5, 0xFFFFFFFF);
+        }
+        //?} else {
+        /*GuiComponent.fill(poseStack, progressX, progressY, progressX + progressW, progressY + 4, 0xFF333333);
+        if (dur > 0) {
+            int filled = (int) (((double) pos / dur) * progressW);
+            GuiComponent.fill(poseStack, progressX, progressY, progressX + filled, progressY + 4, 0xFFFFAA00);
+            GuiComponent.fill(poseStack, progressX + filled - 1, progressY - 1, progressX + filled + 2, progressY + 5, 0xFFFFFFFF);
+        }
+        *///?}
+    }
+
+    // Tab 1: Queue Render
+    //? if >=1.20 {
+    private void renderQueueTab(GuiGraphics graphics, int mouseX, int mouseY) {
+        //?} else {
+        /*private void renderQueueTab(PoseStack poseStack, int mouseX, int mouseY) {
+         *///?}
+        List<JamTrack> tracks = ClientJamManager.getTracks();
+        int listY = 30;
+        int listH = this.height - 110;
+        boolean canEdit = ClientJamManager.canEdit();
+
+        if (tracks.isEmpty()) {
+            //? if >=1.20 {
+            graphics.drawCenteredString(this.font, "§7The queue is empty. Paste a URL below to add audio!", this.width / 2, listY + 30, 0x888888);
+            //?} else {
+            /*drawCenteredString(poseStack, this.font, "§7The queue is empty. Paste a URL below to add audio!", this.width / 2, listY + 30, 0x888888);
+             *///?}
+            return;
+        }
+
+        for (int i = queueScrollOffset; i < tracks.size() && (i - queueScrollOffset) * 16 < listH; i++) {
+            JamTrack t = tracks.get(i);
+            int y = listY + (i - queueScrollOffset) * 16;
+            boolean isCur = (i == ClientJamManager.getCurrentTrackIndex());
+
+            if (mouseX >= 8 && mouseX <= this.width - 8 && mouseY >= y && mouseY < y + 14) {
+                //? if >=1.20 {
+                graphics.fill(8, y - 1, this.width - 8, y + 14, 0x22FFFFFF);
+                //?} else {
+                /*GuiComponent.fill(poseStack, 8, y - 1, this.width - 8, y + 14, 0x22FFFFFF);
+                 *///?}
+            }
+
+            String prefix = isCur ? "§a▶ " : "§7";
+            String tTitle = t.getTitle().isEmpty() ? t.getUrl() : t.getTitle();
+            if (tTitle.length() > 36) tTitle = tTitle.substring(0, 34) + "...";
+            String dur = t.getDurationMs() > 0 ? " §8(" + formatTime(t.getDurationMs()) + ")" : "";
+
+            //? if >=1.20 {
+            graphics.drawString(this.font, prefix + (i + 1) + ". §f" + tTitle + dur, 12, y + 2, 0xFFFFFF);
+            //?} else {
+            /*this.font.draw(poseStack, prefix + (i + 1) + ". §f" + tTitle + dur, 12, y + 2, 0xFFFFFF);
+             *///?}
+
+            if (canEdit) {
+                drawMiniButton(
+                        //? if >=1.20 {
+                        graphics,
+                        //?} else {
+                        /*poseStack,
+                         *///?}
+                        "▶", this.width - 76, y, 14, 12, mouseX, mouseY
+                );
+                drawMiniButton(
+                        //? if >=1.20 {
+                        graphics,
+                        //?} else {
+                        /*poseStack,
+                         *///?}
+                        "▲", this.width - 58, y, 14, 12, mouseX, mouseY
+                );
+                drawMiniButton(
+                        //? if >=1.20 {
+                        graphics,
+                        //?} else {
+                        /*poseStack,
+                         *///?}
+                        "▼", this.width - 40, y, 14, 12, mouseX, mouseY
+                );
+                drawMiniButton(
+                        //? if >=1.20 {
+                        graphics,
+                        //?} else {
+                        /*poseStack,
+                         *///?}
+                        "✕", this.width - 22, y, 14, 12, mouseX, mouseY
+                );
+            }
+        }
+    }
+
+    // Tab 2: Members Render
+    //? if >=1.20 {
+    private void renderMembersTab(GuiGraphics graphics, int mouseX, int mouseY) {
+        //?} else {
+        /*private void renderMembersTab(PoseStack poseStack, int mouseX, int mouseY) {
+         *///?}
+        List<SyncedJam.MemberInfo> members = ClientJamManager.getMembers();
+        int listY = 30;
+        int listH = this.height - 110;
+        boolean canManage = ClientJamManager.canManage();
+
+        for (int i = membersScrollOffset; i < members.size() && (i - membersScrollOffset) * 16 < listH; i++) {
+            SyncedJam.MemberInfo m = members.get(i);
+            int y = listY + (i - membersScrollOffset) * 16;
+
+            if (mouseX >= 8 && mouseX <= this.width - 8 && mouseY >= y && mouseY < y + 14) {
+                //? if >=1.20 {
+                graphics.fill(8, y - 1, this.width - 8, y + 14, 0x22FFFFFF);
+                //?} else {
+                /*GuiComponent.fill(poseStack, 8, y - 1, this.width - 8, y + 14, 0x22FFFFFF);
+                 *///?}
+            }
+
+            String roleColor = switch (m.role()) {
+                case OWNER -> "§6[Host]";
+                case ADMIN -> "§c[Admin]";
+                case EDITOR -> "§b[Editor]";
+                case LISTENER -> "§7[Listener]";
+            };
+
+            //? if >=1.20 {
+            graphics.drawString(this.font, roleColor + " §f" + m.name(), 12, y + 2, 0xFFFFFF);
+            //?} else {
+            /*this.font.draw(poseStack, roleColor + " §f" + m.name(), 12, y + 2, 0xFFFFFF);
+             *///?}
+
+            if (canManage && m.role() != SyncedJam.Role.OWNER) {
+                drawMiniButton(
+                        //? if >=1.20 {
+                        graphics,
+                        //?} else {
+                        /*poseStack,
+                         *///?}
+                        "Role ⟳", this.width - 76, y, 42, 12, mouseX, mouseY
+                );
+                drawMiniButton(
+                        //? if >=1.20 {
+                        graphics,
+                        //?} else {
+                        /*poseStack,
+                         *///?}
+                        "Kick", this.width - 30, y, 22, 12, mouseX, mouseY
+                );
+            }
+        }
+    }
+
+    // Tab 3: Settings Render
+    //? if >=1.20 {
+    private void renderSettingsTab(GuiGraphics graphics) {
+        //?} else {
+        /*private void renderSettingsTab(PoseStack poseStack) {
+         *///?}
+        int centerX = this.width / 2;
+        //? if >=1.20 {
+        graphics.drawCenteredString(this.font, "§6§lRoom Settings & Access Control", centerX, 32, 0xFFFFFF);
+        graphics.drawCenteredString(this.font, "§7Configure who can modify the queue or join this session.", centerX, 134, 0x888888);
+        //?} else {
+        /*drawCenteredString(poseStack, this.font, "§6§lRoom Settings & Access Control", centerX, 32, 0xFFFFFF);
+        drawCenteredString(poseStack, this.font, "§7Configure who can modify the queue or join this session.", centerX, 134, 0x888888);
+        *///?}
+    }
+
+    // Directory View Render (When not in a Jam)
+    //? if >=1.20 {
+    private void renderDirectory(GuiGraphics graphics, int mouseX, int mouseY) {
+        //?} else {
+        /*private void renderDirectory(PoseStack poseStack, int mouseX, int mouseY) {
+         *///?}
+        int centerX = this.width / 2;
+
+        // Header
+        //? if >=1.20 {
+        graphics.drawCenteredString(this.font, "§6§lActive Jam Sessions", centerX, 10, 0xFFFFFF);
+        //?} else {
+        /*drawCenteredString(poseStack, this.font, "§6§lActive Jam Sessions", centerX, 10, 0xFFFFFF);
+         *///?}
+
+        List<S2CSyncJamListPacket.JamSummary> dir = ClientJamManager.getDirectory();
+
+        if (dir.isEmpty()) {
+            // First-Time / Empty State Onboarding Card
+            int cardW = 320;
+            int cardH = 145;
+            int cardX = centerX - (cardW / 2);
+            int cardY = 32;
+
+            //? if >=1.20 {
+            graphics.fill(cardX, cardY, cardX + cardW, cardY + cardH, 0xDD121212);
+            graphics.fill(cardX, cardY, cardX + cardW, cardY + 2, 0xFFFFAA00);
+            graphics.drawCenteredString(this.font, "§6§lWelcome to JamMod!", centerX, cardY + 8, 0xFFFFFF);
+            graphics.drawCenteredString(this.font, "§7No active jam sessions found on this server.", centerX, cardY + 20, 0xAAAAAA);
+
+            graphics.drawString(this.font, "§e1. Create a Session:", cardX + 12, cardY + 36, 0xFFFFFF);
+            graphics.drawString(this.font, "§7   Enter a name below and click §a[Create Jam]§7 (or §f/jam create§7).", cardX + 12, cardY + 47, 0xCCCCCC);
+
+            graphics.drawString(this.font, "§e2. Add Music & Audio:", cardX + 12, cardY + 61, 0xFFFFFF);
+            graphics.drawString(this.font, "§7   Paste YouTube, SoundCloud, or stream URLs with §a[+ Add Track]§7.", cardX + 12, cardY + 72, 0xCCCCCC);
+
+            graphics.drawString(this.font, "§e3. Synchronized Listening:", cardX + 12, cardY + 86, 0xFFFFFF);
+            graphics.drawString(this.font, "§7   Everyone in your room hears the same song at the exact millisecond.", cardX + 12, cardY + 97, 0xCCCCCC);
+
+            graphics.drawString(this.font, "§e4. Manage & Invite:", cardX + 12, cardY + 111, 0xFFFFFF);
+            graphics.drawString(this.font, "§7   Promote friends to §bEditor§7 or §cAdmin§7, or invite via §f/jam invite§7.", cardX + 12, cardY + 122, 0xCCCCCC);
+            //?} else {
+            /*GuiComponent.fill(poseStack, cardX, cardY, cardX + cardW, cardY + cardH, 0xDD121212);
+            GuiComponent.fill(poseStack, cardX, cardY, cardX + cardW, cardY + 2, 0xFFFFAA00);
+            drawCenteredString(poseStack, this.font, "§6§lWelcome to JamMod!", centerX, cardY + 8, 0xFFFFFF);
+            drawCenteredString(poseStack, this.font, "§7No active jam sessions found on this server.", centerX, cardY + 20, 0xAAAAAA);
+
+            this.font.draw(poseStack, "§e1. Create a Session:", cardX + 12, cardY + 36, 0xFFFFFF);
+            this.font.draw(poseStack, "§7   Enter a name below and click §a[Create Jam]§7 (or §f/jam create§7).", cardX + 12, cardY + 47, 0xCCCCCC);
+
+            this.font.draw(poseStack, "§e2. Add Music & Audio:", cardX + 12, cardY + 61, 0xFFFFFF);
+            this.font.draw(poseStack, "§7   Paste YouTube, SoundCloud, or stream URLs with §a[+ Add Track]§7.", cardX + 12, cardY + 72, 0xCCCCCC);
+
+            this.font.draw(poseStack, "§e3. Synchronized Listening:", cardX + 12, cardY + 86, 0xFFFFFF);
+            this.font.draw(poseStack, "§7   Everyone in your room hears the same song at the exact millisecond.", cardX + 12, cardY + 97, 0xCCCCCC);
+
+            this.font.draw(poseStack, "§e4. Manage & Invite:", cardX + 12, cardY + 111, 0xFFFFFF);
+            this.font.draw(poseStack, "§7   Promote friends to §bEditor§7 or §cAdmin§7, or invite via §f/jam invite§7.", cardX + 12, cardY + 122, 0xCCCCCC);
+            *///?}
+        } else {
+            int listY = 28;
+            int listH = this.height - 62;
+            for (int i = directoryScrollOffset; i < dir.size() && (i - directoryScrollOffset) * 22 < listH; i++) {
+                S2CSyncJamListPacket.JamSummary sum = dir.get(i);
+                int y = listY + (i - directoryScrollOffset) * 22;
+
+                if (mouseX >= 8 && mouseX <= this.width - 8 && mouseY >= y && mouseY < y + 20) {
+                    //? if >=1.20 {
+                    graphics.fill(8, y, this.width - 8, y + 20, 0x22FFFFFF);
+                    //?} else {
+                    /*GuiComponent.fill(poseStack, 8, y, this.width - 8, y + 20, 0x22FFFFFF);
+                     *///?}
+                }
+
+                String privacyBadge = sum.isPrivate() ? "§c[Private]" : "§a[Public]";
+                String playing = sum.isPlaying() ? "§6🎵 " + sum.currentTrackTitle() : "§8(Idle)";
+
+                //? if >=1.20 {
+                graphics.drawString(this.font, "§f" + sum.name() + " " + privacyBadge + " §7by " + sum.ownerName(), 12, y + 2, 0xFFFFFF);
+                graphics.drawString(this.font, "§7" + sum.listeners() + " listeners  •  " + playing, 12, y + 11, 0x888888);
+                //?} else {
+                /*this.font.draw(poseStack, "§f" + sum.name() + " " + privacyBadge + " §7by " + sum.ownerName(), 12, y + 2, 0xFFFFFF);
+                this.font.draw(poseStack, "§7" + sum.listeners() + " listeners  •  " + playing, 12, y + 11, 0x888888);
+                *///?}
+
+                if (!sum.isPrivate()) {
+                    drawMiniButton(
+                            //? if >=1.20 {
+                            graphics,
+                            //?} else {
+                            /*poseStack,
+                             *///?}
+                            "Join", this.width - 50, y + 3, 38, 14, mouseX, mouseY
+                    );
+                }
+            }
+        }
+    }
+
+    // Mini Action Button Renderer
+    //? if >=1.20 {
+    private void drawMiniButton(GuiGraphics graphics, String label, int x, int y, int w, int h, int mouseX, int mouseY) {
+        //?} else {
+        /*private void drawMiniButton(PoseStack poseStack, String label, int x, int y, int w, int h, int mouseX, int mouseY) {
+         *///?}
+        boolean hovered = (mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h);
+        int bg = hovered ? 0xDD444444 : 0xAA222222;
+        int border = hovered ? 0xFFFFAA00 : 0xFF555555;
+
+        //? if >=1.20 {
+        graphics.fill(x, y, x + w, y + h, bg);
+        graphics.fill(x, y, x + w, y + 1, border);
+        graphics.fill(x, y + h - 1, x + w, y + h, border);
+        graphics.fill(x, y, x + 1, y + h, border);
+        graphics.fill(x + w - 1, y, x + w, y + h, border);
+        graphics.drawCenteredString(this.font, label, x + (w / 2), y + (h - 8) / 2, hovered ? 0xFFFFFF : 0xCCCCCC);
+        //?} else {
+        /*GuiComponent.fill(poseStack, x, y, x + w, y + h, bg);
+        GuiComponent.fill(poseStack, x, y, x + w, y + 1, border);
+        GuiComponent.fill(poseStack, x, y + h - 1, x + w, y + h, border);
+        GuiComponent.fill(poseStack, x, y, x + 1, y + h, border);
+        GuiComponent.fill(poseStack, x + w - 1, y, x + w, y + h, border);
+        drawCenteredString(poseStack, this.font, label, x + (w / 2), y + (h - 8) / 2, hovered ? 0xFFFFFF : 0xCCCCCC);
+        *///?}
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        int midX = this.width / 2;
+        boolean inJam = ClientJamManager.isInJam();
 
-        if (currentView == View.PLAYER && ClientJamManager.isInJam()) {
-            List<JamTrack> tracks = ClientJamManager.getTracks();
-            int currentIdx = ClientJamManager.getCurrentTrackIndex();
-            JamTrack currentTrack = (currentIdx >= 0 && currentIdx < tracks.size()) ? tracks.get(currentIdx) : null;
+        if (inJam) {
+            // Seekbar Click
+            int barH = 50;
+            int barY = this.height - barH;
+            int progressX = 10;
+            int progressW = this.width - 20;
+            int progressY = barY + 25;
 
-            // Interactive Seekbar Click
-            if (currentTrack != null && currentTrack.getDurationMs() > 0 && ClientJamManager.canEdit()) {
-                int barX = midX - 180;
-                int barY = 78;
-                int barW = 360;
-                if (mouseX >= barX && mouseX <= barX + barW && mouseY >= barY - 4 && mouseY <= barY + 8) {
-                    float pct = (float) (mouseX - barX) / (float) barW;
-                    long targetMs = (long) (pct * currentTrack.getDurationMs());
-                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                            C2SJamActionPacket.Action.SEEK, String.valueOf(targetMs)));
-                    return true;
-                }
-            }
-
-            int startY = 98;
-            int offset = page * ITEMS_PER_PAGE;
-            boolean canEdit = ClientJamManager.canEdit();
-
-            for (int i = 0; i < ITEMS_PER_PAGE && (offset + i) < tracks.size(); i++) {
-                int idx = offset + i;
-                int itemY = startY + (i * 21);
-
-                if (canEdit && mouseX >= midX - 180 && mouseX <= midX + 65 && mouseY >= itemY && mouseY <= itemY + 19) {
-                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                            C2SJamActionPacket.Action.JUMP_TRACK, "", "", false, idx));
-                    return true;
-                }
-
-                if (canEdit) {
-                    if (idx > 0 && mouseX >= midX + 70 && mouseX <= midX + 95 && mouseY >= itemY && mouseY <= itemY + 19) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                                C2SJamActionPacket.Action.MOVE_TRACK, "", "", false, idx, idx - 1));
-                        return true;
-                    }
-                    if (idx < tracks.size() - 1 && mouseX >= midX + 100 && mouseX <= midX + 125 && mouseY >= itemY && mouseY <= itemY + 19) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                                C2SJamActionPacket.Action.MOVE_TRACK, "", "", false, idx, idx + 1));
-                        return true;
-                    }
-                    if (mouseX >= midX + 130 && mouseX <= midX + 155 && mouseY >= itemY && mouseY <= itemY + 19) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                                C2SJamActionPacket.Action.REMOVE_TRACK, "", "", false, idx));
+            if (mouseY >= progressY - 3 && mouseY <= progressY + 7 && mouseX >= progressX && mouseX <= progressX + progressW) {
+                if (ClientJamManager.canEdit()) {
+                    long dur = getCurrentDuration();
+                    if (dur > 0) {
+                        float pct = (float) (mouseX - progressX) / progressW;
+                        long target = (long) (dur * pct);
+                        ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SEEK, String.valueOf(target)));
                         return true;
                     }
                 }
             }
 
-        } else if (currentView == View.ROLES) {
-            List<SyncedJam.MemberInfo> list = ClientJamManager.getMembers();
-            int startY = 66;
-            int offset = page * ITEMS_PER_PAGE;
-
-            for (int i = 0; i < ITEMS_PER_PAGE && (offset + i) < list.size(); i++) {
-                SyncedJam.MemberInfo member = list.get(offset + i);
-                int itemY = startY + (i * 21);
-
-                // Cycle role button
-                if (ClientJamManager.canManage() && member.role() != SyncedJam.Role.OWNER &&
-                        mouseX >= midX + 60 && mouseX <= midX + 150 && mouseY >= itemY && mouseY <= itemY + 19) {
-                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                            C2SJamActionPacket.Action.CYCLE_MEMBER_ROLE, member.uuid().toString(), ""));
-                    return true;
-                }
-
-                // Remove member [X]
-                if (ClientJamManager.canManage() && member.role() != SyncedJam.Role.OWNER &&
-                        mouseX >= midX + 155 && mouseX <= midX + 180 && mouseY >= itemY && mouseY <= itemY + 19) {
-                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                            C2SJamActionPacket.Action.REMOVE_MEMBER, member.uuid().toString(), ""));
-                    return true;
-                }
-            }
-
-        } else if (currentView == View.INVITE) {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.getConnection() != null) {
-                UUID myUuid = mc.player != null ? mc.player.getUUID() : null;
-                List<PlayerInfo> list = mc.getConnection().getOnlinePlayers().stream()
-                        .filter(info -> myUuid == null || !info.getProfile().getId().equals(myUuid))
-                        .toList();
-
-                int startY = 66;
-                int offset = page * ITEMS_PER_PAGE;
-
-                for (int i = 0; i < ITEMS_PER_PAGE && (offset + i) < list.size(); i++) {
-                    PlayerInfo info = list.get(offset + i);
-                    int itemY = startY + (i * 22);
-
-                    if (mouseX >= midX + 100 && mouseX <= midX + 175 && mouseY >= itemY && mouseY <= itemY + 20) {
-                        ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                                C2SJamActionPacket.Action.INVITE_PLAYER, "", info.getProfile().getName(), false, 0));
-                        return true;
+            // Tab 1: Queue Actions
+            if (currentTab == Tab.QUEUE && ClientJamManager.canEdit()) {
+                List<JamTrack> tracks = ClientJamManager.getTracks();
+                int listY = 30;
+                int listH = this.height - 110;
+                for (int i = queueScrollOffset; i < tracks.size() && (i - queueScrollOffset) * 16 < listH; i++) {
+                    int y = listY + (i - queueScrollOffset) * 16;
+                    if (mouseY >= y && mouseY < y + 14) {
+                        // Play [▶]
+                        if (mouseX >= this.width - 76 && mouseX < this.width - 62) {
+                            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.JUMP_TRACK, "", "", false, i));
+                            return true;
+                        }
+                        // Up [▲]
+                        if (mouseX >= this.width - 58 && mouseX < this.width - 44 && i > 0) {
+                            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.MOVE_TRACK, "", "", false, i, i - 1));
+                            return true;
+                        }
+                        // Down [▼]
+                        if (mouseX >= this.width - 40 && mouseX < this.width - 26 && i < tracks.size() - 1) {
+                            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.MOVE_TRACK, "", "", false, i, i + 1));
+                            return true;
+                        }
+                        // Remove [✕]
+                        if (mouseX >= this.width - 22 && mouseX < this.width - 8) {
+                            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.REMOVE_TRACK, "", "", false, i));
+                            return true;
+                        }
                     }
                 }
             }
 
-        } else if (currentView == View.DIRECTORY_PUBLIC || currentView == View.DIRECTORY_MY) {
-            UUID myUuid = Minecraft.getInstance().player != null ? Minecraft.getInstance().player.getUUID() : null;
-            List<JamSummary> list = ClientJamManager.getDirectory().stream()
-                    .filter(j -> currentView == View.DIRECTORY_PUBLIC ? !j.isPrivate() : (myUuid != null && j.ownerId().equals(myUuid)))
-                    .toList();
-
-            int startY = 56;
-            int offset = page * ITEMS_PER_PAGE;
-
-            for (int i = 0; i < ITEMS_PER_PAGE && (offset + i) < list.size(); i++) {
-                JamSummary jam = list.get(offset + i);
-                int itemY = startY + (i * 26);
-
-                if (mouseX >= midX - 180 && mouseX <= midX + 180 && mouseY >= itemY && mouseY <= itemY + 24) {
-                    ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                            C2SJamActionPacket.Action.JOIN_JAM, jam.id(), jam.name()));
-                    switchView(View.PLAYER);
+            // Tab 2: Members Actions
+            if (currentTab == Tab.MEMBERS && ClientJamManager.canManage()) {
+                List<SyncedJam.MemberInfo> members = ClientJamManager.getMembers();
+                int listY = 30;
+                int listH = this.height - 110;
+                for (int i = membersScrollOffset; i < members.size() && (i - membersScrollOffset) * 16 < listH; i++) {
+                    SyncedJam.MemberInfo m = members.get(i);
+                    int y = listY + (i - membersScrollOffset) * 16;
+                    if (m.role() != SyncedJam.Role.OWNER && mouseY >= y && mouseY < y + 14) {
+                        // Role ⟳
+                        if (mouseX >= this.width - 76 && mouseX < this.width - 34) {
+                            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.CYCLE_MEMBER_ROLE, m.uuid().toString()));
+                            return true;
+                        }
+                        // Kick
+                        if (mouseX >= this.width - 30 && mouseX < this.width - 8) {
+                            ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.REMOVE_MEMBER, m.uuid().toString()));
+                            return true;
+                        }
+                    }
+                }
+            }
+        } else {
+            // Directory View Actions (Join Click)
+            List<S2CSyncJamListPacket.JamSummary> dir = ClientJamManager.getDirectory();
+            int listY = 28;
+            int listH = this.height - 62;
+            for (int i = directoryScrollOffset; i < dir.size() && (i - directoryScrollOffset) * 22 < listH; i++) {
+                S2CSyncJamListPacket.JamSummary sum = dir.get(i);
+                int y = listY + (i - directoryScrollOffset) * 22;
+                if (!sum.isPrivate() && mouseY >= y && mouseY < y + 20 && mouseX >= 8 && mouseX <= this.width - 8) {
+                    ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.JOIN_JAM, sum.id()));
                     return true;
                 }
             }
@@ -442,256 +860,48 @@ public class JamScreen extends Screen {
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
+    //? if >=1.20.2 {
+    /*@Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        double delta = scrollY;
+        *///?} else {
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
-            if (currentView == View.ADD_TRACK && inputField != null && !inputField.getValue().trim().isEmpty()) {
-                ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                        C2SJamActionPacket.Action.ADD_TRACK, titleField.getValue().trim(), inputField.getValue().trim(), true, 0));
-                switchView(View.PLAYER);
-                return true;
-            } else if (currentView == View.ROLES && addMemberField != null && !addMemberField.getValue().trim().isEmpty()) {
-                ModNetworking.CHANNEL.sendToServer(new C2SJamActionPacket(
-                        C2SJamActionPacket.Action.ADD_MEMBER_BY_NAME, "", addMemberField.getValue().trim()));
-                addMemberField.setValue("");
-                return true;
+    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    //?}
+        if (ClientJamManager.isInJam()) {
+            if (currentTab == Tab.QUEUE) {
+                queueScrollOffset -= (int) Math.signum(delta);
+                queueScrollOffset = Math.max(0, Math.min(queueScrollOffset, ClientJamManager.getTracks().size() - 1));
+            } else if (currentTab == Tab.MEMBERS) {
+                membersScrollOffset -= (int) Math.signum(delta);
+                membersScrollOffset = Math.max(0, Math.min(membersScrollOffset, ClientJamManager.getMembers().size() - 1));
             }
+        } else {
+            directoryScrollOffset -= (int) Math.signum(delta);
+            directoryScrollOffset = Math.max(0, Math.min(directoryScrollOffset, ClientJamManager.getDirectory().size() - 1));
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return true;
     }
 
-    @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(graphics);
-        int midX = this.width / 2;
-
-        if (playPauseButton != null) playPauseButton.setMessage(Component.literal(ClientJamManager.isPlaying() ? "⏸" : "▶"));
-        if (repeatButton != null) {
-            String rep = switch (ClientJamManager.getRepeatMode()) {
-                case ALL -> "🔁";
-                case ONE -> "🔂";
-                default -> "➡";
-            };
-            repeatButton.setMessage(Component.literal(rep));
-        }
-        if (shuffleButton != null) shuffleButton.setMessage(Component.literal(ClientJamManager.isShuffle() ? "§a🔀" : "§7🔀"));
-        if (policyButton != null) {
-            String color = switch (ClientJamManager.getEditPolicy()) {
-                case OWNER_ONLY -> "§c";
-                case COLLABORATORS -> "§6";
-                case OPEN -> "§a";
-            };
-            policyButton.setMessage(Component.literal("Policy: " + color + ClientJamManager.getEditPolicy().getDisplayName()));
-        }
-        if (privacyButton != null) {
-            privacyButton.setMessage(Component.literal("Privacy: " + (ClientJamManager.isPrivate() ? "§cPrivate" : "§aPublic")));
-        }
-
-        // Adaptive pagination calculations & safe bounds
-        int totalItems = 0;
-        if (currentView == View.PLAYER) totalItems = ClientJamManager.getTracks().size();
-        else if (currentView == View.DIRECTORY_PUBLIC || currentView == View.DIRECTORY_MY) {
-            UUID myUuid = Minecraft.getInstance().player != null ? Minecraft.getInstance().player.getUUID() : null;
-            totalItems = (int) ClientJamManager.getDirectory().stream()
-                    .filter(j -> currentView == View.DIRECTORY_PUBLIC ? !j.isPrivate() : (myUuid != null && j.ownerId().equals(myUuid)))
-                    .count();
-        } else if (currentView == View.INVITE) {
-            UUID myUuid = Minecraft.getInstance().player != null ? Minecraft.getInstance().player.getUUID() : null;
-            totalItems = Minecraft.getInstance().getConnection() != null ? (int) Minecraft.getInstance().getConnection().getOnlinePlayers().stream().filter(i -> myUuid == null || !i.getProfile().getId().equals(myUuid)).count() : 0;
-        } else if (currentView == View.ROLES) {
-            totalItems = ClientJamManager.getMembers().size();
-        }
-
-        int maxPage = Math.max(0, (totalItems - 1) / ITEMS_PER_PAGE);
-        if (page > maxPage) page = Math.max(0, maxPage);
-
-        boolean hasMultiplePages = totalItems > ITEMS_PER_PAGE;
-        if (prevPageBtn != null) {
-            prevPageBtn.visible = hasMultiplePages;
-            prevPageBtn.active = page > 0;
-        }
-        if (nextPageBtn != null) {
-            nextPageBtn.visible = hasMultiplePages;
-            nextPageBtn.active = page < maxPage;
-        }
-
-        if (hasMultiplePages) {
-            int py = getPaginationY();
-            graphics.drawCenteredString(this.font, (page + 1) + " / " + (maxPage + 1), midX, py + 4, 0xAAAAAA);
-        }
-
-        int calculatedVol = ClientAudioEngine.getCurrentCalculatedVolume();
-        graphics.drawString(this.font, "Audio: §a" + calculatedVol + "%", midX - 30, this.height - 15, 0x888888);
-
-        switch (currentView) {
-            case PLAYER -> {
-                if (!ClientJamManager.isInJam()) {
-                    graphics.drawString(this.font, "§cYou are not in any active Jam.", midX - 180, 80, 0xFF5555);
-                    graphics.drawString(this.font, "§7Click §ePublic Jams §7above to join one, or create one in §eMy Jams§7!", midX - 180, 95, 0xAAAAAA);
-                    return;
-                }
-
-                String badge = ClientJamManager.isPrivate() ? "§c[Private] " : "§a[Public] ";
-                graphics.drawString(this.font, badge + "§6" + ClientJamManager.getJamName() + " §7(Host: §f" + ClientJamManager.getOwnerName() + "§7)", midX - 180, 52, 0xFFFFFF);
-
-                String currentTitle = ClientJamManager.getCurrentTrackTitle().isEmpty() ? "None" : ClientJamManager.getCurrentTrackTitle();
-                graphics.drawString(this.font, "Now: §e" + currentTitle, midX - 180, 63, 0xFFFF55);
-
-                int currentIdx = ClientJamManager.getCurrentTrackIndex();
-                List<JamTrack> tracks = ClientJamManager.getTracks();
-                JamTrack curTrack = (currentIdx >= 0 && currentIdx < tracks.size()) ? tracks.get(currentIdx) : null;
-
-                // Timeline Seekbar
-                if (curTrack != null && curTrack.getDurationMs() > 0) {
-                    long elapsed = ClientJamManager.isPlaying()
-                            ? Math.max(0, System.currentTimeMillis() - ClientJamManager.getStartTimestamp())
-                            : ClientJamManager.getPausedElapsedMs();
-                    elapsed = Math.min(elapsed, curTrack.getDurationMs());
-
-                    float progress = Math.min(1.0f, (float) elapsed / curTrack.getDurationMs());
-                    int barX = midX - 180;
-                    int barY = 78;
-                    int barW = 360;
-
-                    graphics.fill(barX, barY, barX + barW, barY + 4, 0x50FFFFFF);
-                    graphics.fill(barX, barY, barX + (int) (barW * progress), barY + 4, 0xFFFFAA00);
-
-                    String timeStr = String.format("%02d:%02d / %02d:%02d",
-                            (elapsed / 60000), (elapsed / 1000) % 60,
-                            (curTrack.getDurationMs() / 60000), (curTrack.getDurationMs() / 1000) % 60);
-                    graphics.drawString(this.font, timeStr, midX + 85, 68, 0xAAAAAA);
-                }
-
-                graphics.drawString(this.font, "§6Tracklist (" + tracks.size() + " songs):", midX - 180, 88, 0xFFAA00);
-
-                int startY = 98;
-                int offset = page * ITEMS_PER_PAGE;
-                boolean canEdit = ClientJamManager.canEdit();
-
-                for (int i = 0; i < ITEMS_PER_PAGE && (offset + i) < tracks.size(); i++) {
-                    int idx = offset + i;
-                    int itemY = startY + (i * 21);
-                    boolean isCurrent = (idx == currentIdx);
-
-                    JamTrack track = tracks.get(idx);
-                    graphics.fill(midX - 180, itemY, midX + 65, itemY + 19, isCurrent ? 0x80336699 : 0x40000000);
-
-                    String label = (idx + 1) + ". " + (isCurrent ? "§a▶ " : "") + track.getTitle();
-                    if (label.length() > 36) label = label.substring(0, 34) + "...";
-                    graphics.drawString(this.font, label, midX - 176, itemY + 3, isCurrent ? 0x55FF55 : 0xEEEEEE);
-
-                    String subUrl = track.getUrl();
-                    if (subUrl.length() > 38) subUrl = subUrl.substring(0, 36) + "...";
-                    graphics.drawString(this.font, "§8" + subUrl, midX - 176, itemY + 11, 0x666666);
-
-                    if (canEdit) {
-                        graphics.fill(midX + 70, itemY, midX + 95, itemY + 19, 0x50000000);
-                        graphics.drawCenteredString(this.font, "▲", midX + 82, itemY + 5, idx > 0 ? 0xFFFF55 : 0x444444);
-
-                        graphics.fill(midX + 100, itemY, midX + 125, itemY + 19, 0x50000000);
-                        graphics.drawCenteredString(this.font, "▼", midX + 112, itemY + 5, idx < tracks.size() - 1 ? 0xFFFF55 : 0x444444);
-
-                        graphics.fill(midX + 130, itemY, midX + 155, itemY + 19, 0x40AA0000);
-                        graphics.drawCenteredString(this.font, "§c✕", midX + 142, itemY + 5, 0xFF5555);
-                    }
-                }
-            }
-
-            case SETTINGS -> {
-                graphics.drawString(this.font, "§6Settings & Preferences", midX - 180, 34, 0xFFFFFF);
-                if (ClientJamManager.canManage()) {
-                    graphics.drawString(this.font, "§7Room Administration:", midX - 180, 68, 0xAAAAAA);
-                }
-            }
-
-            case ROLES -> {
-                graphics.drawString(this.font, "§6Member Roles in §f" + ClientJamManager.getJamName(), midX - 180, 53, 0xFFFFFF);
-                List<SyncedJam.MemberInfo> list = ClientJamManager.getMembers();
-                int startY = 66;
-                int offset = page * ITEMS_PER_PAGE;
-                Minecraft mc = Minecraft.getInstance();
-
-                if (list.isEmpty()) {
-                    graphics.drawString(this.font, "§7No members found.", midX - 180, startY + 10, 0x888888);
-                } else {
-                    for (int i = 0; i < ITEMS_PER_PAGE && (offset + i) < list.size(); i++) {
-                        SyncedJam.MemberInfo member = list.get(offset + i);
-                        int itemY = startY + (i * 21);
-
-                        boolean isOnline = mc.getConnection() != null && mc.getConnection().getPlayerInfo(member.uuid()) != null;
-                        String statusDot = isOnline ? "§a● " : "§7○ ";
-
-                        graphics.fill(midX - 180, itemY, midX + 55, itemY + 19, 0x40000000);
-                        graphics.drawString(this.font, statusDot + "§f" + member.name(), midX - 174, itemY + 5, 0xFFFFFF);
-
-                        graphics.fill(midX + 60, itemY, midX + 150, itemY + 19, 0x60006699);
-                        String roleLabel = member.role().getColor() + member.role().getDisplayName() + (member.role() == SyncedJam.Role.OWNER ? "" : " ↻");
-                        graphics.drawCenteredString(this.font, roleLabel, midX + 105, itemY + 5, 0xFFFFFF);
-
-                        if (member.role() != SyncedJam.Role.OWNER && ClientJamManager.canManage()) {
-                            graphics.fill(midX + 155, itemY, midX + 180, itemY + 19, 0x40AA0000);
-                            graphics.drawCenteredString(this.font, "§c✕", midX + 167, itemY + 5, 0xFF5555);
-                        }
-                    }
-                }
-            }
-
-            case INVITE -> {
-                graphics.drawString(this.font, "§6Invite Online Players to §f" + ClientJamManager.getJamName(), midX - 180, 52, 0xFFFFFF);
-                Minecraft mc = Minecraft.getInstance();
-                if (mc.getConnection() != null) {
-                    UUID myUuid = mc.player != null ? mc.player.getUUID() : null;
-                    List<PlayerInfo> list = mc.getConnection().getOnlinePlayers().stream()
-                            .filter(info -> myUuid == null || !info.getProfile().getId().equals(myUuid))
-                            .toList();
-
-                    int startY = 66;
-                    int offset = page * ITEMS_PER_PAGE;
-
-                    if (list.isEmpty()) {
-                        graphics.drawString(this.font, "§7No other players online to invite.", midX - 180, 80, 0x888888);
-                    } else {
-                        for (int i = 0; i < ITEMS_PER_PAGE && (offset + i) < list.size(); i++) {
-                            PlayerInfo info = list.get(offset + i);
-                            int itemY = startY + (i * 22);
-
-                            graphics.fill(midX - 180, itemY, midX + 90, itemY + 20, 0x40000000);
-                            graphics.drawString(this.font, info.getProfile().getName(), midX - 174, itemY + 6, 0xFFFFFF);
-
-                            graphics.fill(midX + 100, itemY, midX + 175, itemY + 20, 0x80008800);
-                            graphics.drawCenteredString(this.font, "§aInvite", midX + 137, itemY + 6, 0xFFFFFF);
-                        }
-                    }
-                }
-            }
-
-            case DIRECTORY_PUBLIC, DIRECTORY_MY -> {
-                UUID myUuid = Minecraft.getInstance().player != null ? Minecraft.getInstance().player.getUUID() : null;
-                List<JamSummary> list = ClientJamManager.getDirectory().stream()
-                        .filter(j -> currentView == View.DIRECTORY_PUBLIC ? !j.isPrivate() : (myUuid != null && j.ownerId().equals(myUuid)))
-                        .toList();
-
-                int startY = 56;
-                int offset = page * ITEMS_PER_PAGE;
-
-                if (list.isEmpty()) {
-                    graphics.drawString(this.font, "§7No Jams found in this directory.", midX - 180, startY + 10, 0x888888);
-                } else {
-                    for (int i = 0; i < ITEMS_PER_PAGE && (offset + i) < list.size(); i++) {
-                        JamSummary jam = list.get(offset + i);
-                        int itemY = startY + (i * 26);
-
-                        graphics.fill(midX - 180, itemY, midX + 180, itemY + 24, 0x40000000);
-                        graphics.drawString(this.font, (jam.isPrivate() ? "§c[P] " : "§a[Pub] ") + "§f" + jam.name() + " §7(by " + jam.ownerName() + ")", midX - 176, itemY + 4, 0xFFFFFF);
-                        graphics.drawString(this.font, "§8" + jam.trackCount() + " tracks | 👥 " + jam.listeners() + " listening | Click to Join", midX - 176, itemY + 14, 0x888888);
-                    }
-                }
-            }
-            default -> {}
-        }
-
-        super.render(graphics, mouseX, mouseY, partialTick);
+    //? if >=1.20.2 {
+    /*@Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        super.renderBackground(graphics, mouseX, mouseY, partialTick);
+        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
     }
+    *///?} else if >=1.20 {
+    @Override
+    public void renderBackground(GuiGraphics graphics) {
+        super.renderBackground(graphics);
+        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
+    }
+    //?} else {
+    /*@Override
+    public void renderBackground(PoseStack poseStack) {
+        super.renderBackground(poseStack);
+        GuiComponent.fill(poseStack, 0, 0, this.width, this.height, 0xCC000000);
+    }
+    *///?}
 
     @Override
     public boolean isPauseScreen() {

@@ -16,7 +16,13 @@ import dev.lavalink.youtube.YoutubeSourceOptions;
 import dev.lavalink.youtube.clients.*;
 import dev.lavalink.youtube.clients.skeleton.Client;
 import net.minecraft.client.Minecraft;
+
+//? if >=1.19 {
 import net.minecraft.network.chat.Component;
+//?} else {
+/*import net.minecraft.network.chat.TextComponent;
+ *///?}
+
 import net.minecraft.sounds.SoundSource;
 import org.apache.http.HttpRequest;
 import org.apache.http.protocol.HttpContext;
@@ -259,7 +265,11 @@ public class ClientAudioEngine {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
             if (mc.player != null) {
+                //? if >=1.19 {
                 mc.player.sendSystemMessage(Component.literal(msg));
+                //?} else {
+                /*mc.player.displayClientMessage(new net.minecraft.network.chat.TextComponent(msg), false);
+                 *///?}
             }
         });
     }

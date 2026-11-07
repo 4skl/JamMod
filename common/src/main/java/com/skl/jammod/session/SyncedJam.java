@@ -311,6 +311,13 @@ public class SyncedJam {
         else if (from > currentTrackIndex && to <= currentTrackIndex) currentTrackIndex++;
     }
 
+    public synchronized void updateTrack(int index, String title, long durationMs) {
+        if (index >= 0 && index < this.tracks.size()) {
+            JamTrack old = this.tracks.get(index);
+            this.tracks.set(index, new JamTrack(title, old.getUrl(), durationMs));
+        }
+    }
+
     public synchronized void seek(long offsetMs) {
         ensureRuntimeState();
         if (tracks.isEmpty() || !playing) return;

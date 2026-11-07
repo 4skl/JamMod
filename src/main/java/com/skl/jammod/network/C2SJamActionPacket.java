@@ -1,46 +1,99 @@
 package com.skl.jammod.network;
 
-import com.skl.jammod.session.AntiSpamManager;
-import com.skl.jammod.session.JamEditPolicy;
-import com.skl.jammod.session.ServerJamRegistry;
-import com.skl.jammod.session.SyncedJam;
+import com.skl.jammod.JamMod;
+import com.skl.jammod.session.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-public class C2SJamActionPacket {
+//? if <=1.18.2 {
+/*import net.minecraft.network.chat.TextComponent;
+ *///?}
+
+//? if >=1.21 {
+/*import net.neoforged.neoforge.network.handling.IPayloadContext;
+ *///?} else if >1.20.1 {
+/*import net.neoforged.neoforge.network.handling.PlayPayloadContext;
+*///?} else {
+import net.minecraftforge.network.NetworkEvent;
+ //?}
+
+public class C2SJamActionPacket
+//? if >1.20.1 {
+        /*implements net.minecraft.network.protocol.common.custom.CustomPacketPayload
+*///?}
+{
+    //? if >=1.21 {
+    /*public static final net.minecraft.network.protocol.common.custom.CustomPacketPayload.Type<C2SJamActionPacket> TYPE =
+            new net.minecraft.network.protocol.common.custom.CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(JamMod.MODID, "jam_action"));
+    public static final net.minecraft.network.codec.StreamCodec<FriendlyByteBuf, C2SJamActionPacket> STREAM_CODEC =
+            net.minecraft.network.codec.StreamCodec.ofMember(C2SJamActionPacket::write, C2SJamActionPacket::decode);
+
+    @Override
+    public net.minecraft.network.protocol.common.custom.CustomPacketPayload.Type<? extends net.minecraft.network.protocol.common.custom.CustomPacketPayload> type() {
+        return TYPE;
+    }
+    *///?} else if >1.20.1 {
+    /*public static final ResourceLocation ID = new ResourceLocation(JamMod.MODID, "jam_action");
+
+    @Override
+    public ResourceLocation id() {
+        return ID;
+    }
+    *///?}
+
+    //? if >1.20.1 {
+    /*@Override
+    public void write(FriendlyByteBuf buf) {
+        encode(this, buf);
+    }
+    *///?}
+
     public enum Action {
-        CREATE_JAM, JOIN_JAM, LEAVE_JAM, DELETE_JAM,
-        TOGGLE_PLAY, SKIP, PREVIOUS, JUMP_TRACK,
-        ADD_TRACK, REMOVE_TRACK, MOVE_TRACK,
-        SET_POLICY, TOGGLE_PRIVACY, INVITE_PLAYER, CYCLE_MEMBER_ROLE, ADD_MEMBER_BY_NAME, REMOVE_MEMBER,
-        UPDATE_METADATA, SEEK, CYCLE_REPEAT, TOGGLE_SHUFFLE,
-        REQUEST_SYNC
+        REQUEST_SYNC, PREVIOUS, TOGGLE_PLAY, SKIP, CYCLE_REPEAT, TOGGLE_SHUFFLE,
+        LEAVE_JAM, ADD_TRACK, TOGGLE_PRIVACY, SET_POLICY, DELETE_JAM,
+        ADD_MEMBER_BY_NAME, CREATE_JAM, SEEK, JUMP_TRACK, MOVE_TRACK,
+        REMOVE_TRACK, CYCLE_MEMBER_ROLE, REMOVE_MEMBER, INVITE_PLAYER,
+        JOIN_JAM, UPDATE_METADATA
     }
 
-    private final Action action;
-    private final String targetId;
-    private final String payload;
-    private final boolean flag;
-    private final int intArg1;
-    private final int intArg2;
+    public final Action action;
+    public final String targetId;
+    public final String payload;
+    public final boolean flag;
+    public final int index;
+    public final int extraInt;
 
-    public C2SJamActionPacket(Action action) { this(action, "", "", false, 0, 0); }
-    public C2SJamActionPacket(Action action, String payload) { this(action, "", payload, false, 0, 0); }
-    public C2SJamActionPacket(Action action, String targetId, String payload) { this(action, targetId, payload, false, 0, 0); }
-    public C2SJamActionPacket(Action action, String targetId, String payload, boolean flag, int intArg1) { this(action, targetId, payload, flag, intArg1, 0); }
-    public C2SJamActionPacket(Action action, String targetId, String payload, boolean flag, int intArg1, int intArg2) {
+    public C2SJamActionPacket(Action action) {
+        this(action, "", "", false, 0, 0);
+    }
+
+    public C2SJamActionPacket(Action action, String targetId) {
+        this(action, targetId, "", false, 0, 0);
+    }
+
+    public C2SJamActionPacket(Action action, String targetId, String payload) {
+        this(action, targetId, payload, false, 0, 0);
+    }
+
+    public C2SJamActionPacket(Action action, String targetId, String payload, boolean flag, int index) {
+        this(action, targetId, payload, flag, index, 0);
+    }
+
+    public C2SJamActionPacket(Action action, String targetId, String payload, boolean flag, int index, int extraInt) {
         this.action = action;
         this.targetId = targetId;
         this.payload = payload;
         this.flag = flag;
-        this.intArg1 = intArg1;
-        this.intArg2 = intArg2;
+        this.index = index;
+        this.extraInt = extraInt;
     }
 
     public static void encode(C2SJamActionPacket msg, FriendlyByteBuf buf) {
@@ -48,8 +101,8 @@ public class C2SJamActionPacket {
         buf.writeUtf(msg.targetId);
         buf.writeUtf(msg.payload);
         buf.writeBoolean(msg.flag);
-        buf.writeInt(msg.intArg1);
-        buf.writeInt(msg.intArg2);
+        buf.writeVarInt(msg.index);
+        buf.writeVarInt(msg.extraInt);
     }
 
     public static C2SJamActionPacket decode(FriendlyByteBuf buf) {
@@ -58,192 +111,279 @@ public class C2SJamActionPacket {
                 buf.readUtf(),
                 buf.readUtf(),
                 buf.readBoolean(),
-                buf.readInt(),
-                buf.readInt()
+                buf.readVarInt(),
+                buf.readVarInt()
         );
     }
 
-    public static void handle(C2SJamActionPacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            ServerPlayer player = ctx.get().getSender();
-            if (player == null || player.getServer() == null) return;
-            UUID uuid = player.getUUID();
-            String playerName = player.getGameProfile().getName();
+    private static MutableComponent text(String msg) {
+        //? if >=1.19 {
+        return Component.literal(msg);
+        //?} else {
+        /*return new TextComponent(msg);
+         *///?}
+    }
 
-            // Dual resolution fallback so targetId or payload can be passed interchangeably
-            String idOrName = !msg.targetId.isBlank() ? msg.targetId : msg.payload;
+    private static void sendMsg(ServerPlayer player, Component comp) {
+        //? if >=1.19 {
+        player.sendSystemMessage(comp);
+        //?} else {
+        /*player.sendMessage(comp, net.minecraft.Util.NIL_UUID);
+         *///?}
+    }
 
-            switch (msg.action) {
-                case CREATE_JAM -> {
-                    SyncedJam jam = ServerJamRegistry.createJam(msg.payload, uuid, playerName, msg.flag);
-                    ServerJamRegistry.joinJam(jam.getId(), uuid, playerName);
-                    ServerJamRegistry.broadcastJamState(player.getServer(), jam);
-                    ServerJamRegistry.broadcastDirectory(player.getServer());
-                    return;
-                }
-                case JOIN_JAM -> {
-                    if (ServerJamRegistry.joinJam(idOrName, uuid, playerName)) {
-                        SyncedJam jam = ServerJamRegistry.getJamByPlayer(uuid);
-                        ServerJamRegistry.broadcastJamState(player.getServer(), jam);
-                        ServerJamRegistry.broadcastDirectory(player.getServer());
-                    } else {
-                        player.sendSystemMessage(Component.literal("§c[JamMod] Cannot join Jam: '" + idOrName + "' (Private or Not Found)."));
-                    }
-                    return;
-                }
-                case LEAVE_JAM -> {
-                    SyncedJam old = ServerJamRegistry.leaveCurrentJam(uuid);
-                    ModNetworking.sendToPlayer(player, new S2CSyncJamPacket(
-                            "", "", "", false, JamEditPolicy.OPEN, SyncedJam.RepeatMode.OFF, false,
-                            "", "", 0, 0, false, new ArrayList<>(), new ArrayList<>(), 0, false, false, false));
-                    if (old != null) ServerJamRegistry.broadcastJamState(player.getServer(), old);
-                    ServerJamRegistry.broadcastDirectory(player.getServer());
-                    return;
-                }
-                case DELETE_JAM -> {
-                    ServerJamRegistry.deleteJam(idOrName, uuid);
-                    ServerJamRegistry.broadcastDirectory(player.getServer());
-                    return;
-                }
-                case INVITE_PLAYER -> {
-                    SyncedJam jam = ServerJamRegistry.getJamByPlayer(uuid);
-                    if (jam == null) return;
-                    ServerPlayer target = player.getServer().getPlayerList().getPlayerByName(msg.payload);
-                    if (target == null) {
-                        player.sendSystemMessage(Component.literal("§c[JamMod] Player '" + msg.payload + "' is not online."));
-                        return;
-                    }
-                    String err = AntiSpamManager.canSendInvite(uuid, target.getUUID());
-                    if (err != null) {
-                        player.sendSystemMessage(Component.literal("§c[JamMod] " + err));
-                        return;
-                    }
+    private static void processAction(C2SJamActionPacket msg, ServerPlayer player) {
+        UUID pUuid = player.getUUID();
+        String playerName = player.getName().getString();
 
-                    AntiSpamManager.recordInvite(uuid, target.getUUID());
-                    jam.invitePlayer(target.getUUID(), target.getName().getString());
-                    ServerJamRegistry.save();
-
-                    player.sendSystemMessage(Component.literal("§6[JamMod] §aInvited §f" + target.getName().getString() + " §ato §f" + jam.getName()));
-                    target.sendSystemMessage(Component.literal("§6[JamMod] §f" + playerName + " §ainvited you to Jam: §e" + jam.getName() + " ")
-                            .append(Component.literal("§a§l[Click to Join]").withStyle(s -> s
-                                    .withColor(net.minecraft.ChatFormatting.GREEN)
-                                    .withUnderlined(true)
-                                    .withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.RUN_COMMAND, "/jam join " + jam.getName()))
-                                    .withHoverEvent(new net.minecraft.network.chat.HoverEvent(net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT, Component.literal("Click to join " + jam.getName())))))
-                    );
-                    return;
+        switch (msg.action) {
+            case REQUEST_SYNC -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null) {
+                    ServerJamRegistry.broadcastJamState(player.server, jam);
                 }
-                case REQUEST_SYNC -> {
-                    ServerJamRegistry.syncDirectoryToPlayer(player);
-                    SyncedJam current = ServerJamRegistry.getJamByPlayer(uuid);
-                    if (current != null) {
-                        ServerJamRegistry.broadcastJamState(player.getServer(), current);
-                    }
-                    return;
-                }
-                default -> {}
+                ServerJamRegistry.broadcastDirectory(player.server);
             }
-
-            SyncedJam active = ServerJamRegistry.getJamByPlayer(uuid);
-            if (active == null) return;
-
-            if (msg.action == Action.UPDATE_METADATA) {
-                long durationMs = (long) msg.intArg2 * 1000L;
-                active.updateTrackMetadata(msg.intArg1, msg.payload, durationMs);
-                ServerJamRegistry.save();
-                ServerJamRegistry.broadcastJamState(player.getServer(), active);
-                return;
+            case PREVIOUS -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canEdit(pUuid)) {
+                    jam.previous();
+                    ServerJamRegistry.broadcastJamState(player.server, jam);
+                }
             }
-
-            // Management actions (Host & Jam Admins)
-            if (active.canManage(uuid)) {
-                if (msg.action == Action.SET_POLICY) {
-                    active.setEditPolicy(active.getEditPolicy().next());
+            case TOGGLE_PLAY -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canEdit(pUuid)) {
+                    jam.togglePlay();
+                    ServerJamRegistry.broadcastJamState(player.server, jam);
+                }
+            }
+            case SKIP -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canEdit(pUuid)) {
+                    jam.skip();
+                    ServerJamRegistry.broadcastJamState(player.server, jam);
+                }
+            }
+            case CYCLE_REPEAT -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canEdit(pUuid)) {
+                    SyncedJam.RepeatMode next = SyncedJam.RepeatMode.values()[(jam.getRepeatMode().ordinal() + 1) % SyncedJam.RepeatMode.values().length];
+                    jam.setRepeatMode(next);
                     ServerJamRegistry.save();
-                    ServerJamRegistry.broadcastJamState(player.getServer(), active);
-                    return;
-                } else if (msg.action == Action.TOGGLE_PRIVACY && active.isOwner(uuid)) {
-                    active.setPrivate(!active.isPrivate());
+                    ServerJamRegistry.broadcastJamState(player.server, jam);
+                }
+            }
+            case TOGGLE_SHUFFLE -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canEdit(pUuid)) {
+                    jam.setShuffle(!jam.isShuffle());
                     ServerJamRegistry.save();
-                    ServerJamRegistry.broadcastJamState(player.getServer(), active);
-                    ServerJamRegistry.broadcastDirectory(player.getServer());
-                    return;
-                } else if (msg.action == Action.CYCLE_MEMBER_ROLE && !msg.targetId.isBlank()) {
-                    try {
-                        UUID targetMember = UUID.fromString(msg.targetId);
-                        active.cycleRole(uuid, targetMember);
+                    ServerJamRegistry.broadcastJamState(player.server, jam);
+                }
+            }
+            case LEAVE_JAM -> {
+                SyncedJam old = ServerJamRegistry.leaveCurrentJam(pUuid);
+                ModNetworking.sendToPlayer(player, new S2CSyncJamPacket(
+                        "", "", "", false, JamEditPolicy.OPEN, SyncedJam.RepeatMode.OFF, false,
+                        "", "", 0L, 0L, false, new ArrayList<>(), new ArrayList<>(), 0, false, false, false));
+                if (old != null) ServerJamRegistry.broadcastJamState(player.server, old);
+                ServerJamRegistry.broadcastDirectory(player.server);
+            }
+            case ADD_TRACK -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canEdit(pUuid)) {
+                    jam.addTrack(msg.payload, msg.targetId, msg.flag);
+                    ServerJamRegistry.save();
+                    ServerJamRegistry.broadcastJamState(player.server, jam);
+                    ServerJamRegistry.broadcastDirectory(player.server);
+                }
+            }
+            case TOGGLE_PRIVACY -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.isOwner(pUuid)) {
+                    jam.setPrivate(!jam.isPrivate());
+                    ServerJamRegistry.save();
+                    ServerJamRegistry.broadcastJamState(player.server, jam);
+                    ServerJamRegistry.broadcastDirectory(player.server);
+                }
+            }
+            case SET_POLICY -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canManage(pUuid)) {
+                    jam.setEditPolicy(jam.getEditPolicy().next());
+                    ServerJamRegistry.save();
+                    ServerJamRegistry.broadcastJamState(player.server, jam);
+                }
+            }
+            case DELETE_JAM -> {
+                if (ServerJamRegistry.deleteJam(msg.targetId, pUuid)) {
+                    ServerJamRegistry.broadcastDirectory(player.server);
+                }
+            }
+            case ADD_MEMBER_BY_NAME -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canManage(pUuid)) {
+                    ServerPlayer target = player.server.getPlayerList().getPlayerByName(msg.payload);
+                    if (target != null) {
+                        jam.setRole(target.getUUID(), target.getName().getString(), SyncedJam.Role.EDITOR);
                         ServerJamRegistry.save();
-                        ServerJamRegistry.broadcastJamState(player.getServer(), active);
-                    } catch (Exception ignored) {}
-                    return;
-                } else if (msg.action == Action.ADD_MEMBER_BY_NAME && !msg.payload.isBlank()) {
-                    String targetName = msg.payload.trim();
-                    ServerPlayer target = player.getServer().getPlayerList().getPlayerByName(targetName);
-                    UUID targetUuid = target != null ? target.getUUID() : UUID.nameUUIDFromBytes(("OfflinePlayer:" + targetName).getBytes());
-                    active.setRole(targetUuid, targetName, SyncedJam.Role.EDITOR);
-                    ServerJamRegistry.save();
-                    ServerJamRegistry.broadcastJamState(player.getServer(), active);
-                    player.sendSystemMessage(Component.literal("§6[JamMod] §aAdded §f" + targetName + " §aas Editor."));
-                    return;
-                } else if (msg.action == Action.REMOVE_MEMBER && !msg.targetId.isBlank()) {
-                    try {
-                        UUID targetMember = UUID.fromString(msg.targetId);
-                        if (active.canManageMember(uuid, targetMember)) {
-                            active.removeMember(targetMember);
-                            ServerJamRegistry.save();
-                            ServerJamRegistry.broadcastJamState(player.getServer(), active);
-                        } else {
-                            player.sendSystemMessage(Component.literal("§c[JamMod] You do not have authority to remove this member."));
-                        }
-                    } catch (Exception ignored) {}
-                    return;
+                        ServerJamRegistry.broadcastJamState(player.server, jam);
+                        sendMsg(player, text("§6[JamMod] §aAdded §f" + target.getName().getString() + " §aas Editor."));
+                    } else {
+                        sendMsg(player, text("§c[JamMod] Player '" + msg.payload + "' is not online."));
+                    }
                 }
             }
-
-            // Playback controls (Collaborators / Open permissions)
-            if (!active.canEdit(uuid)) {
-                player.sendSystemMessage(Component.literal("§c[JamMod] You do not have permission to modify this Jam."));
-                return;
+            case CREATE_JAM -> {
+                SyncedJam jam = ServerJamRegistry.createJam(msg.payload, pUuid, playerName, msg.flag);
+                ServerJamRegistry.joinJam(jam.getId(), pUuid, playerName);
+                ServerJamRegistry.broadcastJamState(player.server, jam);
+                ServerJamRegistry.broadcastDirectory(player.server);
             }
-
-            switch (msg.action) {
-                case TOGGLE_PLAY -> active.togglePlay();
-                case SKIP -> active.skip();
-                case PREVIOUS -> active.previous();
-                case JUMP_TRACK -> active.playTrackAt(msg.intArg1);
-                case ADD_TRACK -> {
-                    active.addTrack(msg.payload, msg.targetId, msg.flag);
-                    ServerJamRegistry.save();
-                }
-                case REMOVE_TRACK -> {
-                    active.removeTrack(msg.intArg1);
-                    ServerJamRegistry.save();
-                }
-                case MOVE_TRACK -> {
-                    active.moveTrack(msg.intArg1, msg.intArg2);
-                    ServerJamRegistry.save();
-                }
-                case SEEK -> {
+            case SEEK -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canEdit(pUuid)) {
                     try {
-                        long offsetMs = Long.parseLong(msg.payload);
-                        active.seek(offsetMs);
+                        long ms = Long.parseLong(msg.targetId);
+                        jam.seek(ms);
+                        ServerJamRegistry.broadcastJamState(player.server, jam);
                     } catch (NumberFormatException ignored) {}
                 }
-                case CYCLE_REPEAT -> {
-                    SyncedJam.RepeatMode next = SyncedJam.RepeatMode.values()[(active.getRepeatMode().ordinal() + 1) % SyncedJam.RepeatMode.values().length];
-                    active.setRepeatMode(next);
-                    ServerJamRegistry.save();
-                }
-                case TOGGLE_SHUFFLE -> {
-                    active.setShuffle(!active.isShuffle());
-                    ServerJamRegistry.save();
-                }
-                default -> {}
             }
+            case JUMP_TRACK -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canEdit(pUuid)) {
+                    jam.playTrackAt(msg.index);
+                    ServerJamRegistry.broadcastJamState(player.server, jam);
+                }
+            }
+            case MOVE_TRACK -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canEdit(pUuid)) {
+                    jam.moveTrack(msg.index, msg.extraInt);
+                    ServerJamRegistry.save();
+                    ServerJamRegistry.broadcastJamState(player.server, jam);
+                }
+            }
+            case REMOVE_TRACK -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canEdit(pUuid)) {
+                    jam.removeTrack(msg.index);
+                    ServerJamRegistry.save();
+                    ServerJamRegistry.broadcastJamState(player.server, jam);
+                    ServerJamRegistry.broadcastDirectory(player.server);
+                }
+            }
+            case CYCLE_MEMBER_ROLE -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canManage(pUuid)) {
+                    try {
+                        UUID memberUuid = UUID.fromString(msg.targetId);
+                        SyncedJam.Role currentRole = jam.getRole(memberUuid);
+                        if (currentRole != SyncedJam.Role.OWNER) {
+                            SyncedJam.Role nextRole = (currentRole == SyncedJam.Role.LISTENER) ? SyncedJam.Role.EDITOR :
+                                    (currentRole == SyncedJam.Role.EDITOR && jam.isOwner(pUuid)) ? SyncedJam.Role.ADMIN : SyncedJam.Role.LISTENER;
+                            ServerPlayer target = player.getServer().getPlayerList().getPlayer(memberUuid);
+                            String memberName = target != null ? target.getName().getString() : (!msg.payload.isEmpty() ? msg.payload : "Unknown");
+                            jam.setRole(memberUuid, memberName, nextRole);
+                            ServerJamRegistry.save();
+                            ServerJamRegistry.broadcastJamState(player.server, jam);
+                        }
+                    } catch (IllegalArgumentException ignored) {}
+                }
+            }
+            case REMOVE_MEMBER -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null && jam.canManage(pUuid)) {
+                    try {
+                        UUID memberUuid = UUID.fromString(msg.targetId);
+                        if (jam.canManageMember(pUuid, memberUuid)) {
+                            jam.removeMember(memberUuid);
+                            ServerJamRegistry.save();
+                            ServerJamRegistry.broadcastJamState(player.server, jam);
+                        } else {
+                            sendMsg(player, text("§c[JamMod] You do not have authority to remove this member."));
+                        }
+                    } catch (IllegalArgumentException ignored) {}
+                }
+            }
+            case INVITE_PLAYER -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null) {
+                    ServerPlayer target = player.server.getPlayerList().getPlayerByName(msg.payload);
+                    if (target != null) {
+                        String err = AntiSpamManager.canSendInvite(pUuid, target.getUUID());
+                        if (err != null) {
+                            sendMsg(player, text("§c[JamMod] " + err));
+                            return;
+                        }
+                        AntiSpamManager.recordInvite(pUuid, target.getUUID());
+                        jam.invitePlayer(target.getUUID(), target.getName().getString());
+                        ServerJamRegistry.save();
 
-            ServerJamRegistry.broadcastJamState(player.getServer(), active);
-            ServerJamRegistry.broadcastDirectory(player.getServer());
-        });
-        ctx.get().setPacketHandled(true);
+                        sendMsg(player, text("§6[JamMod] §aInvited §f" + target.getName().getString() + " §ato §f" + jam.getName()));
+                        sendMsg(target, text("§6[JamMod] §f" + playerName + " §ainvited you to Jam: §e" + jam.getName() + " ")
+                                .append(text("§a§l[Click to Join]").withStyle(s -> s
+                                        .withColor(net.minecraft.ChatFormatting.GREEN)
+                                        .withUnderlined(true)
+                                        .withClickEvent(new net.minecraft.network.chat.ClickEvent(
+                                                net.minecraft.network.chat.ClickEvent.Action.RUN_COMMAND, "/jam join " + jam.getName()))
+                                        .withHoverEvent(new net.minecraft.network.chat.HoverEvent(
+                                                net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT, text("Click to join " + jam.getName()))))));
+                    } else {
+                        sendMsg(player, text("§c[JamMod] Player '" + msg.payload + "' is not online."));
+                    }
+                }
+            }
+            case JOIN_JAM -> {
+                String idOrName = !msg.targetId.isEmpty() ? msg.targetId : msg.payload;
+                if (!ServerJamRegistry.joinJam(idOrName, pUuid, playerName)) {
+                    sendMsg(player, text("§c[JamMod] Cannot join Jam: '" + idOrName + "' (Private or Not Found)."));
+                } else {
+                    SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                    if (jam != null) {
+                        ServerJamRegistry.broadcastJamState(player.server, jam);
+                        ServerJamRegistry.broadcastDirectory(player.server);
+                    }
+                }
+            }
+            case UPDATE_METADATA -> {
+                SyncedJam jam = ServerJamRegistry.getJamByPlayer(pUuid);
+                if (jam != null) {
+                    jam.updateTrack(msg.index, msg.payload, (long) msg.extraInt * 1000L);
+                    ServerJamRegistry.save();
+                    ServerJamRegistry.broadcastJamState(player.server, jam);
+                }
+            }
+        }
     }
+
+    //? if >=1.21 {
+    /*public static void handle(C2SJamActionPacket msg, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            if (ctx.player() instanceof ServerPlayer player) {
+                processAction(msg, player);
+            }
+        });
+    }
+    *///?} else if >1.20.1 {
+    /*public static void handle(C2SJamActionPacket msg, PlayPayloadContext ctx) {
+        ctx.workHandler().execute(() -> {
+            ctx.player().ifPresent(p -> {
+                if (p instanceof ServerPlayer player) {
+                    processAction(msg, player);
+                }
+            });
+        });
+    }
+    *///?} else {
+    public static void handle(C2SJamActionPacket msg, Supplier<NetworkEvent.Context> ctx) {
+        NetworkEvent.Context context = ctx.get();
+        ServerPlayer player = context.getSender();
+        if (player == null) return;
+        context.enqueueWork(() -> processAction(msg, player));
+        context.setPacketHandled(true);
+    }
+    //?}
 }

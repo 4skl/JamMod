@@ -2,6 +2,12 @@ plugins {
     id 'java-library'
 }
 
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.lavalink.dev/releases' }
+    maven { url = 'https://jitpack.io' }
+}
+
 group = 'com.skl'
 version = '2.2.2'
 

@@ -145,10 +145,20 @@ public class ClientJamManager {
     public static JamEditPolicy getEditPolicy() { return editPolicy; }
     public static RepeatMode getRepeatMode() { return repeatMode; }
     public static boolean isShuffle() { return shuffle; }
-    public static String getCurrentTrackUrl() { return currentTrackUrl; }
+    public static String getCurrentTrackUrl() {
+        return currentTrackUrl != null ? currentTrackUrl : "";
+    }
     public static String getCurrentTrackTitle() { return currentTrackTitle; }
     public static int getCurrentTrackIndex() { return currentTrackIndex; }
     public static long getStartTimestamp() { return startTimestamp; }
+    private long getCurrentDuration() {
+        int idx = ClientJamManager.getCurrentTrackIndex();
+        List<JamTrack> tracks = ClientJamManager.getTracks();
+        if (idx >= 0 && idx < tracks.size()) {
+            return tracks.get(idx).getDurationMs();
+        }
+        return 0L;
+    }
     public static long getPausedElapsedMs() { return pausedElapsedMs; }
     public static boolean isPlaying() { return playing; }
     public static List<JamTrack> getTracks() { return Collections.unmodifiableList(tracks); }
