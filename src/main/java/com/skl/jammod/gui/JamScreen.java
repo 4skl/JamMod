@@ -307,12 +307,7 @@ public class JamScreen extends Screen {
     }
 
     private long getCurrentDuration() {
-        int idx = ClientJamManager.getCurrentTrackIndex();
-        List<JamTrack> tracks = ClientJamManager.getTracks();
-        if (idx >= 0 && idx < tracks.size()) {
-            return tracks.get(idx).getDurationMs();
-        }
-        return 0L;
+        return ClientJamManager.getCurrentDuration();
     }
 
     private static String formatTime(long ms) {
@@ -323,15 +318,23 @@ public class JamScreen extends Screen {
         return String.format("%02d:%02d", min, sec);
     }
 
-    //? if >=1.20 {
-    @Override
+    //? if >=1.20.2 {
+    /*@Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
-        //?} else {
+        super.render(graphics, mouseX, mouseY, partialTick);
+        *///?} else if >=1.20 {
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        this.renderBackground(graphics);
+        super.render(graphics, mouseX, mouseY, partialTick);
+    //?} else {
     /*@Override
     public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(poseStack);
+        super.render(poseStack, mouseX, mouseY, partialTick);
     *///?}
+
         updateVisibilities();
 
         boolean inJam = ClientJamManager.isInJam();
@@ -355,12 +358,6 @@ public class JamScreen extends Screen {
                     mouseX, mouseY
             );
         }
-
-        //? if >=1.20 {
-        super.render(graphics, mouseX, mouseY, partialTick);
-        //?} else {
-        /*super.render(poseStack, mouseX, mouseY, partialTick);
-         *///?}
     }
 
     // Session Rendering (Inside a Jam)
@@ -886,7 +883,11 @@ public class JamScreen extends Screen {
     //? if >=1.20.2 {
     /*@Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        //? if >=1.20.5 {
+        /^this.renderTransparentBackground(graphics);
+        ^///?} else {
         super.renderBackground(graphics, mouseX, mouseY, partialTick);
+         //?}
         graphics.fill(0, 0, this.width, this.height, 0xCC000000);
     }
     *///?} else if >=1.20 {

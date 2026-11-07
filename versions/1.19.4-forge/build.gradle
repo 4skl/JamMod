@@ -37,13 +37,9 @@ minecraft {
 dependencies {
     minecraft 'net.minecraftforge:forge:1.19.4-45.3.0'
 
-    // 1. Compile classpath
-    compileOnly project(':lavaplayer-bundle')
+    compileOnly(project(':lavaplayer-bundle')) { transitive = false }
+    minecraftLibrary(project(':lavaplayer-bundle')) { transitive = false }
 
-    // 2. Dev runtime launch classpath
-    minecraftLibrary project(':lavaplayer-bundle')
-
-    // 3. Production Jar-in-Jar
     jarJar(project(':lavaplayer-bundle')) {
         transitive = false
         jarJar.ranged(it, '[2.2.2,)')

@@ -27,14 +27,12 @@ neoForge {
 }
 
 dependencies {
-    // Compile against the bundled library and its exposed APIs
-    compileOnly project(':lavaplayer-bundle')
+    compileOnly(project(':lavaplayer-bundle')) { transitive = false }
+    additionalRuntimeClasspath(project(':lavaplayer-bundle')) { transitive = false }
 
-    // Dev runtime classpath for NeoForge runs
-    additionalRuntimeClasspath project(':lavaplayer-bundle')
-
-    // Bundles lavaplayer-bundle into the final JAR for production
-    jarJar project(':lavaplayer-bundle')
+    jarJar(project(':lavaplayer-bundle')) {
+        transitive = false
+    }
 }
 
 jar {

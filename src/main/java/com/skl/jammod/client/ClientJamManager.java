@@ -151,7 +151,7 @@ public class ClientJamManager {
     public static String getCurrentTrackTitle() { return currentTrackTitle; }
     public static int getCurrentTrackIndex() { return currentTrackIndex; }
     public static long getStartTimestamp() { return startTimestamp; }
-    private long getCurrentDuration() {
+    public static long getCurrentDuration() {
         int idx = ClientJamManager.getCurrentTrackIndex();
         List<JamTrack> tracks = ClientJamManager.getTracks();
         if (idx >= 0 && idx < tracks.size()) {

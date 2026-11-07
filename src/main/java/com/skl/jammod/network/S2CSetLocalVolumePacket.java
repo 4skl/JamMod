@@ -11,9 +11,9 @@ import java.util.function.Supplier;
 
 //? if >=1.21 {
 /*import net.neoforged.neoforge.network.handling.IPayloadContext;
- *///?} else if >1.20.1 {
+*///?} else if >1.20.1 {
 /*import net.neoforged.neoforge.network.handling.PlayPayloadContext;
-*///?} else {
+ *///?} else {
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
@@ -44,8 +44,7 @@ public class S2CSetLocalVolumePacket
     *///?}
 
     //? if >1.20.1 {
-    /*@Override
-    public void write(FriendlyByteBuf buf) {
+    /*public void write(FriendlyByteBuf buf) {
         encode(this, buf);
     }
     *///?}
@@ -67,7 +66,7 @@ public class S2CSetLocalVolumePacket
     private static void applyVolume(int volume) {
         Minecraft mc = Minecraft.getInstance();
         double target = Math.max(0.0, Math.min(1.0, volume / 100.0));
-        //? if >=1.19.4 {
+        //? if >1.19.2 {
         mc.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(target);
         //?} else {
         /*mc.options.setSoundCategoryVolume(SoundSource.MUSIC, (float) target);

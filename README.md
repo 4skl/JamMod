@@ -32,7 +32,7 @@
 
 ```
 
-/jam create  [private]
+/jam create <name> [private]
 
 ```
 * **Public Jams** appear in the server directory for all players to discover and join.
@@ -41,9 +41,9 @@
 #### 3. Add Music & Audio
 * Click **`[+ Add Track]`** and paste any stream URL.
 * Supported sources include:
-- **YouTube** (videos, live streams, and playlists)
-- **SoundCloud** tracks and playlists
-- **Bandcamp**, **Twitch Streams**, and direct web audio files (`.mp3`, `.ogg`, `.flac`, `.wav`).
+    - **YouTube** (videos, live streams, and playlists)
+    - **SoundCloud** tracks and playlists
+    - **Bandcamp**, **Twitch Streams**, and direct web audio files (`.mp3`, `.ogg`, `.flac`, `.wav`).
 * Titles, artists, and song durations resolve automatically in the background.
 
 #### 4. Invite & Listen in Sync
@@ -84,7 +84,7 @@
 | `/jam prev` | Restarts the current track or returns to the previous one. |
 | `/jam seek <seconds>` | Jumps playback to an exact timestamp for all listeners. |
 | `/jam volume <0-100>` | Adjusts your local JamMod volume (synced with Minecraft Music). |
-| `/jam hud [toggle\|corner]` | Configures the "Now Playing" HUD overlay on your screen. |
+| `/jam overlay [toggle\|corner]` | Configures the "Now Playing" HUD overlay on your screen. |
 | `/jam toggleinvites` | Toggles whether other players can send you room invitations. |
 
 ---
@@ -113,26 +113,44 @@ When a new track begins, an unobtrusive "Now Playing" notification appears in yo
 
 ### Building from Source
 
-This project uses **Stonecutter** for multi-version management.
+This project uses **Stonecutter** for multi-version management. The Lavaplayer dependency is bundled inside the mod using Jar-in-Jar.
 
 ```bash
 # Clone the repository
-git clone [https://github.com/mediolivier/JamMod.git](https://github.com/mediolivier/JamMod.git)
-cd JamMod
 
-# Switch active Stonecutter project to any version:
+git clone https://github.com/4skl/JamMod.git
+
+cd JamMod
+```
+#### --- Single Version Compilation ---
+
+##### Switch active Stonecutter project to any version:
+
+```bash
 ./gradlew "Set active project to 1.20.4-neoforge"
-./gradlew "Set active project to 1.21.1-neoforge"
-./gradlew "Set active project to 1.20.1-forge"
 
 # Compile and build the active version JAR:
 ./gradlew build
 
 # Run the test client for the active target:
 ./gradlew runClient
-
 ```
 
+
+#### --- Multi-Version Compilation ---
+
+##### Build release JARs for all supported Forge and NeoForge versions at once:
+
+```bash
+./gradlew buildAll
+```
+
+Compiled `.jar` files will be output to their respective `versions/<version>/build/libs/` directories.
+
+
+
 ### License
+
+
 
 Distributed under the **MIT License**. See `LICENSE` for details.

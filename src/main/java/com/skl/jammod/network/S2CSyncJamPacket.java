@@ -14,9 +14,9 @@ import java.util.function.Supplier;
 
 //? if >=1.21 {
 /*import net.neoforged.neoforge.network.handling.IPayloadContext;
- *///?} else if >1.20.1 {
+        *///?} else if >1.20.1 {
 /*import net.neoforged.neoforge.network.handling.PlayPayloadContext;
-*///?} else {
+ *///?} else {
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
@@ -47,8 +47,7 @@ public class S2CSyncJamPacket
     *///?}
 
     //? if >1.20.1 {
-    /*@Override
-    public void write(FriendlyByteBuf buf) {
+    /*public void write(FriendlyByteBuf buf) {
         encode(this, buf);
     }
     *///?}

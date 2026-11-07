@@ -53,6 +53,7 @@ public class JamMod {
 
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
+        ServerJamRegistry.init();
     }
 
     @SubscribeEvent

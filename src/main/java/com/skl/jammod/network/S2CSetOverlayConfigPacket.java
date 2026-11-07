@@ -10,9 +10,9 @@ import java.util.function.Supplier;
 
 //? if >=1.21 {
 /*import net.neoforged.neoforge.network.handling.IPayloadContext;
- *///?} else if >1.20.1 {
+        *///?} else if >1.20.1 {
 /*import net.neoforged.neoforge.network.handling.PlayPayloadContext;
-*///?} else {
+ *///?} else {
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
@@ -27,7 +27,7 @@ public class S2CSetOverlayConfigPacket
     /*public static final net.minecraft.network.protocol.common.custom.CustomPacketPayload.Type<S2CSetOverlayConfigPacket> TYPE =
             new net.minecraft.network.protocol.common.custom.CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(JamMod.MODID, "set_overlay_config"));
     public static final net.minecraft.network.codec.StreamCodec<FriendlyByteBuf, S2CSetOverlayConfigPacket> STREAM_CODEC =
-            net.minecraft.network.protocol.common.custom.CustomPacketPayload.codec(S2CSetOverlayConfigPacket::write, S2CSetOverlayConfigPacket::decode);
+            net.minecraft.network.codec.StreamCodec.ofMember(S2CSetOverlayConfigPacket::write, S2CSetOverlayConfigPacket::decode);
 
     @Override
     public net.minecraft.network.protocol.common.custom.CustomPacketPayload.Type<? extends net.minecraft.network.protocol.common.custom.CustomPacketPayload> type() {
@@ -43,8 +43,7 @@ public class S2CSetOverlayConfigPacket
     *///?}
 
     //? if >1.20.1 {
-    /*@Override
-    public void write(FriendlyByteBuf buf) {
+    /*public void write(FriendlyByteBuf buf) {
         encode(this, buf);
     }
     *///?}
