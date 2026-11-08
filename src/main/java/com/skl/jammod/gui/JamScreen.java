@@ -143,7 +143,7 @@ public class JamScreen extends Screen {
         this.addRenderableWidget(settingsTabBtn);
 
         // Tab 1: Queue Widgets
-        urlInput = new EditBox(this.font, 10, this.height - 76, this.width - 115, 18, text("Stream URL"));
+        urlInput = new EditBox(this.font, 10, this.height - 76, this.width - 120, 18, text("Stream URL"));
         urlInput.setMaxLength(2048);
         this.addRenderableWidget(urlInput);
 
@@ -157,11 +157,11 @@ public class JamScreen extends Screen {
         this.addRenderableWidget(addBtn);
 
         // Tab 2: Members Widgets
-        inviteInput = new EditBox(this.font, 10, this.height - 76, this.width - 130, 18, text("Player Name"));
+        inviteInput = new EditBox(this.font, 10, this.height - 76, this.width - 135, 18, text("Player Name"));
         inviteInput.setMaxLength(32);
         this.addRenderableWidget(inviteInput);
 
-        inviteBtn = createButton(text("✉ Invite Player"), this.width - 115, this.height - 76, 105, 18, b -> {
+        inviteBtn = createButton(text("✉ Invite Player"), this.width - 120, this.height - 76, 110, 18, b -> {
             String name = inviteInput.getValue().trim();
             if (!name.isEmpty()) {
                 ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.INVITE_PLAYER, "", name));
@@ -225,9 +225,9 @@ public class JamScreen extends Screen {
         nameInput.setMaxLength(32);
         this.addRenderableWidget(nameInput);
 
-        createPrivacyBtn = createButton(text(createIsPrivate ? "🔒 Private" : "🌐 Public"), this.width - 185, this.height - 25, 75, 18, b -> {
+        createPrivacyBtn = createButton(text(createIsPrivate ? "🔒 Private" : "Public"), this.width - 185, this.height - 25, 75, 18, b -> {
             createIsPrivate = !createIsPrivate;
-            createPrivacyBtn.setMessage(text(createIsPrivate ? "🔒 Private" : "🌐 Public"));
+            createPrivacyBtn.setMessage(text(createIsPrivate ? "🔒 Private" : "Public"));
         });
         this.addRenderableWidget(createPrivacyBtn);
 
@@ -342,17 +342,14 @@ public class JamScreen extends Screen {
     /*@Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
-        super.render(graphics, mouseX, mouseY, partialTick);
     *///?} else if >1.19.4 {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(graphics);
-        super.render(graphics, mouseX, mouseY, partialTick);
         //?} else {
     /*@Override
     public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(poseStack);
-        super.render(poseStack, mouseX, mouseY, partialTick);
     *///?}
         updateVisibilities();
 
@@ -377,6 +374,12 @@ public class JamScreen extends Screen {
                     mouseX, mouseY
             );
         }
+
+        //? if >=1.20 {
+        super.render(graphics, mouseX, mouseY, partialTick);
+        //?} else {
+        /*super.render(poseStack, mouseX, mouseY, partialTick);
+         *///?}
     }
 
     // Session Rendering (Inside a Jam)
@@ -415,15 +418,17 @@ public class JamScreen extends Screen {
         }
 
         // Fixed Bottom Player Bar
-        int barH = 50;
+        int barH = 52;
         int barY = this.height - barH;
 
         //? if >=1.20 {
-        graphics.fill(0, barY, this.width, this.height, 0xEE111111);
+        graphics.fill(0, barY, this.width, this.height, 0xF0101014);
         graphics.fill(0, barY, this.width, barY + 1, 0xFFFFAA00);
+        graphics.fill(0, barY + 1, this.width, barY + 2, 0x33FFAA00);
         //?} else {
-        /*GuiComponent.fill(poseStack, 0, barY, this.width, this.height, 0xEE111111);
+        /*GuiComponent.fill(poseStack, 0, barY, this.width, this.height, 0xF0101014);
         GuiComponent.fill(poseStack, 0, barY, this.width, barY + 1, 0xFFFFAA00);
+        GuiComponent.fill(poseStack, 0, barY + 1, this.width, barY + 2, 0x33FFAA00);
         *///?}
 
         // --- Player Header (Now Playing & Link Subtext) ---
@@ -431,10 +436,12 @@ public class JamScreen extends Screen {
         int idx = ClientJamManager.getCurrentTrackIndex();
         List<JamTrack> trackList = ClientJamManager.getTracks();
 
-        String trackTitle = "";
-        String trackUrl = ClientJamManager.getCurrentTrackUrl();
+        String trackTitle = ClientJamManager.getCurrentTrackTitle();
+        if (trackTitle == null) trackTitle = "";
 
-        // Pull title from the active queue track first
+        String trackUrl = url;
+        if (trackUrl == null) trackUrl = "";
+
         if (idx >= 0 && idx < trackList.size()) {
             JamTrack current = trackList.get(idx);
             if (current.getTitle() != null && !current.getTitle().isBlank()) {
@@ -445,12 +452,12 @@ public class JamScreen extends Screen {
             }
         }
 
-        if (trackTitle.isEmpty()) {
-            trackTitle = ClientJamManager.getCurrentTrackTitle();
-        }
-
         String displayTitle = !trackTitle.isEmpty() ? trackTitle : (!trackUrl.isEmpty() ? trackUrl : "No track playing");
         if (displayTitle.length() > 42) displayTitle = displayTitle.substring(0, 40) + "...";
+
+        if (displayTitle.equals(trackUrl) || displayTitle.equals(trackUrl.substring(0, Math.min(trackUrl.length(), 40)) + "...")) {
+            trackUrl = "";
+        }
 
         long dur = getCurrentDuration();
         long pos = ClientJamManager.isPlaying() ? (System.currentTimeMillis() - ClientJamManager.getStartTimestamp()) : 0L;
@@ -469,37 +476,37 @@ public class JamScreen extends Screen {
         *///?}
 
         // Line 2: Played Song Subtext as Link
-        if (!url.isEmpty()) {
-            String displayUrl = url.length() > 50 ? url.substring(0, 47) + "..." : url;
+        if (!trackUrl.isEmpty()) {
+            String displayUrl = trackUrl.length() > 50 ? trackUrl.substring(0, 47) + "..." : trackUrl;
             //? if >=1.20 {
             graphics.drawString(this.font, "§7🔗 " + displayUrl + " §8(Click to Copy)", 10, barY + 15, 0x888888);
-            graphics.drawString(this.font, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 4, 0xFFFFFF);
+            graphics.drawString(this.font, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 15, 0xFFFFFF);
             //?} else {
             /*this.font.draw(poseStack, "§7🔗 " + displayUrl + " §8(Click to Copy)", 10, barY + 15, 0x888888);
-            this.font.draw(poseStack, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 4, 0xFFFFFF);
+            this.font.draw(poseStack, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 15, 0xFFFFFF);
              *///?}
         } else {
             //? if >=1.20 {
-            graphics.drawString(this.font, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 4, 0xFFFFFF);
+            graphics.drawString(this.font, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 15, 0xFFFFFF);
             //?} else {
-            /*this.font.draw(poseStack, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 4, 0xFFFFFF);
+            /*this.font.draw(poseStack, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 15, 0xFFFFFF);
              *///?}
         }
 
         // Timeline Progress Bar
         int progressX = 10;
         int progressW = this.width - 20;
-        int progressY = barY + 25;
+        int progressY = barY + 26;
 
         //? if >=1.20 {
-        graphics.fill(progressX, progressY, progressX + progressW, progressY + 4, 0xFF333333);
+        graphics.fill(progressX, progressY, progressX + progressW, progressY + 4, 0xFF222228);
         if (dur > 0) {
             int filled = (int) (((double) pos / dur) * progressW);
             graphics.fill(progressX, progressY, progressX + filled, progressY + 4, 0xFFFFAA00);
             graphics.fill(progressX + filled - 1, progressY - 1, progressX + filled + 2, progressY + 5, 0xFFFFFFFF);
         }
         //?} else {
-        /*GuiComponent.fill(poseStack, progressX, progressY, progressX + progressW, progressY + 4, 0xFF333333);
+        /*GuiComponent.fill(poseStack, progressX, progressY, progressX + progressW, progressY + 4, 0xFF222228);
         if (dur > 0) {
             int filled = (int) (((double) pos / dur) * progressW);
             GuiComponent.fill(poseStack, progressX, progressY, progressX + filled, progressY + 4, 0xFFFFAA00);

@@ -31,9 +31,9 @@ import net.minecraftforge.fml.common.Mod;
 /*import net.neoforged.fml.common.EventBusSubscriber;
  *///?} else if >1.20.1 {
 /*import net.neoforged.fml.common.Mod.EventBusSubscriber;
-*///?} else {
+ *///?} else {
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
- //?}
+//?}
 
 @EventBusSubscriber(modid = JamMod.MODID, value = Dist.CLIENT)
 public class ClientHUDOverlay {
@@ -44,8 +44,16 @@ public class ClientHUDOverlay {
 
     public static void triggerPopup(String title, String url) {
         if ((title == null || title.isBlank()) && (url == null || url.isBlank())) return;
-        popupTitle = (title != null && !title.isBlank()) ? title : url;
-        popupUrl = (url != null && !url.isBlank()) ? url : "";
+        popupTitle = (title != null && !title.isBlank()) ? title.trim() : "";
+        popupUrl = (url != null && !url.isBlank()) ? url.trim() : "";
+
+        if (popupTitle.isEmpty() && !popupUrl.isEmpty()) {
+            popupTitle = popupUrl;
+            popupUrl = "";
+        } else if (popupTitle.equalsIgnoreCase(popupUrl)) {
+            popupUrl = "";
+        }
+
         popupStartTime = System.currentTimeMillis();
     }
 
@@ -80,59 +88,89 @@ public class ClientHUDOverlay {
         int screenWidth = mc.getWindow().getGuiScaledWidth();
         int screenHeight = mc.getWindow().getGuiScaledHeight();
 
+        // Smooth Fade Out & Slide-in Animation
         float alpha = 1.0f;
-        if (elapsed > POPUP_DURATION - 1000) {
-            alpha = Math.max(0.0f, 1.0f - ((elapsed - (POPUP_DURATION - 1000)) / 1000.0f));
+        if (elapsed > POPUP_DURATION - 800) {
+            alpha = Math.max(0.0f, (POPUP_DURATION - elapsed) / 800.0f);
         }
 
-        int width = 215;
-        int height = 28;
+        float slide = 1.0f;
+        if (elapsed < 300) {
+            slide = elapsed / 300.0f;
+        }
+
+        boolean hasSubUrl = !popupUrl.isEmpty();
+        int width = 225;
+        int height = hasSubUrl ? 38 : 26;
 
         OverlayCorner corner = ClientJamConfig.getOverlayCorner();
-        int x, y;
+        int baseX, y;
+
         switch (corner) {
             case TOP_LEFT -> {
-                x = 10;
+                baseX = (int) (10 * slide);
                 y = 10;
             }
             case BOTTOM_LEFT -> {
-                x = 10;
+                baseX = (int) (10 * slide);
                 y = screenHeight - height - 12;
             }
             case BOTTOM_RIGHT -> {
-                x = screenWidth - width - 10;
+                baseX = screenWidth - (int) ((width + 10) * slide);
                 y = screenHeight - height - 12;
             }
             case TOP_RIGHT -> {
-                x = screenWidth - width - 10;
+                baseX = screenWidth - (int) ((width + 10) * slide);
                 y = 10;
             }
             default -> {
-                x = screenWidth - width - 10;
+                baseX = screenWidth - (int) ((width + 10) * slide);
                 y = 10;
             }
         }
 
-        RenderSystem.enableBlend();
-        int bgAlpha = (int) (alpha * 0xDD) << 24;
-        int barAlpha = ((int) (alpha * 0xFF) << 24) | 0xFFAA00;
-        int textAlpha = (int) (alpha * 255) << 24;
-        int linkAlpha = (int) (alpha * 180) << 24;
+        int x = baseX;
 
-        String truncTitle = popupTitle.length() > 28 ? popupTitle.substring(0, 26) + "..." : popupTitle;
-        String truncUrl = popupUrl.length() > 32 ? popupUrl.substring(0, 30) + "..." : popupUrl;
+        RenderSystem.enableBlend();
+        int bgCol = ((int) (alpha * 0xEA) << 24) | 0x111116;
+        int borderCol = ((int) (alpha * 0x55) << 24) | 0xFFFFAA00;
+        int barCol = ((int) (alpha * 0xFF) << 24) | 0xFFAA00;
+        int textCol = ((int) (alpha * 255) << 24) | 0xFFFFFF;
+        int subCol = ((int) (alpha * 180) << 24) | 0xAAAAAA;
+
+        String truncTitle = popupTitle.length() > 30 ? popupTitle.substring(0, 28) + "..." : popupTitle;
+        String truncUrl = popupUrl.length() > 34 ? popupUrl.substring(0, 31) + "..." : popupUrl;
 
         //? if >=1.20 {
-        graphics.fill(x, y, x + width, y + height, bgAlpha | 0x141414);
-        graphics.fill(x, y, x + 3, y + height, barAlpha);
-        graphics.drawString(mc.font, "§6🎵 Now Playing", x + 8, y + 4, textAlpha | 0xFFFFFF);
-        graphics.drawString(mc.font, "§f" + truncTitle, x + 8, y + 15, textAlpha | 0xDDDDDD);
+        // Outer glow & card background
+        graphics.fill(x, y, x + width, y + height, bgCol);
+        graphics.fill(x, y, x + width, y + 1, borderCol);
+        graphics.fill(x, y + height - 1, x + width, y + height, borderCol);
+        graphics.fill(x + width - 1, y, x + width, y + height, borderCol);
+
+        // Accent indicator
+        graphics.fill(x, y, x + 3, y + height, barCol);
+
+        // Content
+        graphics.drawString(mc.font, "§6🎵 Now Playing", x + 8, y + 4, textCol);
+        graphics.drawString(mc.font, "§f" + truncTitle, x + 8, y + 14, textCol);
+        if (hasSubUrl) {
+            graphics.drawString(mc.font, "§7🔗 " + truncUrl, x + 8, y + 25, subCol);
+        }
         //?} else {
-        /*GuiComponent.fill(poseStack, x, y, x + width, y + height, bgAlpha | 0x141414);
-        GuiComponent.fill(poseStack, x, y, x + 3, y + height, barAlpha);
-        GuiComponent.drawString(poseStack, mc.font, "§6🎵 Now Playing", x + 8, y + 4, textAlpha | 0xFFFFFF);
-        GuiComponent.drawString(poseStack, mc.font, "§f" + truncTitle, x + 8, y + 15, textAlpha | 0xDDDDDD);
+        /*GuiComponent.fill(poseStack, x, y, x + width, y + height, bgCol);
+        GuiComponent.fill(poseStack, x, y, x + width, y + 1, borderCol);
+        GuiComponent.fill(poseStack, x, y + height - 1, x + width, y + height, borderCol);
+        GuiComponent.fill(poseStack, x + width - 1, y, x + width, y + height, borderCol);
+        GuiComponent.fill(poseStack, x, y, x + 3, y + height, barCol);
+
+        mc.font.draw(poseStack, "§6🎵 Now Playing", x + 8, y + 4, textCol);
+        mc.font.draw(poseStack, "§f" + truncTitle, x + 8, y + 14, textCol);
+        if (hasSubUrl) {
+            mc.font.draw(poseStack, "§7🔗 " + truncUrl, x + 8, y + 25, subCol);
+        }
         *///?}
+
         RenderSystem.disableBlend();
     }
 }

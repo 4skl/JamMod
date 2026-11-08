@@ -43,6 +43,8 @@ public class ClientAudioEngine {
 
     private static final AudioDataFormat AUDIO_FORMAT = StandardAudioDataFormats.DISCORD_PCM_S16_BE;
 
+    private static volatile long currentPlaySession = 0;
+
     public static synchronized void init() {
         if (initialized) return;
 
@@ -189,30 +191,27 @@ public class ClientAudioEngine {
         });
     }
 
-    public static void play(String trackUrl, long offsetMs) {
+    public static void play(String trackUrl, long timeArg) {
         init();
         if (playerManager == null || player == null) return;
 
+        final long sessionId = ++currentPlaySession;
         player.setPaused(false);
+
         playerManager.loadItem(trackUrl, new AudioLoadResultHandler() {
             @Override
             public void trackLoaded(AudioTrack track) {
-                if (offsetMs > 0 && offsetMs < track.getDuration()) {
-                    track.setPosition(offsetMs);
-                }
-                player.playTrack(track);
+                if (sessionId != currentPlaySession) return;
+                applySyncAndPlay(track, timeArg, sessionId);
             }
 
             @Override
             public void playlistLoaded(AudioPlaylist playlist) {
+                if (sessionId != currentPlaySession) return;
                 AudioTrack track = playlist.getSelectedTrack() != null
                         ? playlist.getSelectedTrack()
                         : playlist.getTracks().get(0);
-
-                if (offsetMs > 0 && offsetMs < track.getDuration()) {
-                    track.setPosition(offsetMs);
-                }
-                player.playTrack(track);
+                applySyncAndPlay(track, timeArg, sessionId);
             }
 
             @Override
@@ -225,6 +224,65 @@ public class ClientAudioEngine {
                 sendChatMessage("§c[JamMod] Stream error: " + exception.getMessage());
             }
         });
+    }
+
+    private static void applySyncAndPlay(AudioTrack track, long timeArg, long sessionId) {
+        long delay;
+        long pos = 0;
+
+        // Automatically detect if caller passed an Epoch Timestamp or a Relative Offset
+        if (timeArg > 100_000_000_000L) {
+            long diff = timeArg - System.currentTimeMillis();
+            if (diff > 0) delay = diff;
+            else {
+                delay = 0;
+                pos = -diff;
+            }
+        } else {
+            if (timeArg < 0) delay = -timeArg;
+            else {
+                delay = 0;
+                pos = timeArg;
+            }
+        }
+
+        if (delay > 0) {
+            track.setPosition(0);
+            new Thread(() -> {
+                try {
+                    Thread.sleep(delay);
+                    if (sessionId == currentPlaySession && player != null && !player.isPaused()) {
+                        player.playTrack(track);
+                    }
+                } catch (InterruptedException ignored) {}
+            }, "JamMod-DelayedStart").start();
+        } else {
+            // For initial startup latency (< 4s), play from 0:00; otherwise seek to catch up
+            if (pos > 4000L && pos < track.getDuration()) {
+                track.setPosition(pos);
+            }
+            player.playTrack(track);
+        }
+    }
+
+    public static void setPaused(boolean paused) {
+        currentPlaySession++;
+        if (player != null) {
+            player.setPaused(paused);
+        }
+        if (paused && audioLine != null) {
+            audioLine.flush();
+        }
+    }
+
+    public static void stop() {
+        currentPlaySession++;
+        if (player != null) {
+            player.stopTrack();
+        }
+        if (audioLine != null) {
+            audioLine.flush();
+        }
     }
 
     public static long getPosition() {
@@ -240,24 +298,6 @@ public class ClientAudioEngine {
             if (offsetMs >= 0 && offsetMs <= track.getDuration()) {
                 track.setPosition(offsetMs);
             }
-        }
-    }
-
-    public static void setPaused(boolean paused) {
-        if (player != null) {
-            player.setPaused(paused);
-        }
-        if (paused && audioLine != null) {
-            audioLine.flush();
-        }
-    }
-
-    public static void stop() {
-        if (player != null) {
-            player.stopTrack();
-        }
-        if (audioLine != null) {
-            audioLine.flush();
         }
     }
 
