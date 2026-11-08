@@ -1,11 +1,3 @@
-allprojects {
-    repositories {
-        mavenCentral()
-        maven { url = 'https://maven.lavalink.dev/releases' }
-        maven { url = 'https://jitpack.io' }
-    }
-}
-
 subprojects {
     apply plugin: 'java'
 
@@ -23,6 +15,11 @@ subprojects {
 
         tasks.withType(JavaCompile).configureEach {
             dependsOn ':lavaplayer-bundle:shadowJar'
+        }
+
+        // Force processResources to run before any runClient / runServer task
+        tasks.withType(JavaExec).configureEach {
+            dependsOn tasks.named('processResources')
         }
     }
 

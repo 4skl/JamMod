@@ -34,7 +34,6 @@ public class JamScreen extends Screen {
 
     private Tab currentTab = Tab.QUEUE;
     private boolean createIsPrivate = false;
-    private boolean playNowFlag = false;
 
     // Header & Global Buttons
     private Button refreshBtn;
@@ -48,7 +47,6 @@ public class JamScreen extends Screen {
     // Tab 1: Queue Widgets
     private EditBox urlInput;
     private Button addBtn;
-    private Button playNowBtn;
 
     // Tab 2: Members Widgets
     private EditBox inviteInput;
@@ -65,6 +63,8 @@ public class JamScreen extends Screen {
     private Button skipBtn;
     private Button repeatBtn;
     private Button shuffleBtn;
+    private Button volDownBtn;
+    private Button volUpBtn;
 
     // Directory View Widgets
     private EditBox nameInput;
@@ -143,20 +143,14 @@ public class JamScreen extends Screen {
         this.addRenderableWidget(settingsTabBtn);
 
         // Tab 1: Queue Widgets
-        urlInput = new EditBox(this.font, 10, this.height - 76, this.width - 180, 18, text("Stream URL"));
+        urlInput = new EditBox(this.font, 10, this.height - 76, this.width - 115, 18, text("Stream URL"));
         urlInput.setMaxLength(2048);
         this.addRenderableWidget(urlInput);
-
-        playNowBtn = createButton(text(playNowFlag ? "▶ Now" : "⏳ Queue"), this.width - 165, this.height - 76, 55, 18, b -> {
-            playNowFlag = !playNowFlag;
-            playNowBtn.setMessage(text(playNowFlag ? "▶ Now" : "⏳ Queue"));
-        });
-        this.addRenderableWidget(playNowBtn);
 
         addBtn = createButton(text("+ Add Track"), this.width - 105, this.height - 76, 95, 18, b -> {
             String url = urlInput.getValue().trim();
             if (!url.isEmpty()) {
-                ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.ADD_TRACK, "", url, playNowFlag, 0));
+                ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.ADD_TRACK, "", url, false, 0));
                 urlInput.setValue("");
             }
         });
@@ -220,6 +214,12 @@ public class JamScreen extends Screen {
         });
         this.addRenderableWidget(shuffleBtn);
 
+        volDownBtn = createButton(text("-"), this.width - 50, playerBarY, 15, 15, b -> changeVolume(-10));
+        this.addRenderableWidget(volDownBtn);
+
+        volUpBtn = createButton(text("+"), this.width - 15, playerBarY, 15, 15, b -> changeVolume(10));
+        this.addRenderableWidget(volUpBtn);
+
         // Directory View Widgets
         nameInput = new EditBox(this.font, 10, this.height - 25, this.width - 200, 18, text("Jam Name"));
         nameInput.setMaxLength(32);
@@ -241,6 +241,20 @@ public class JamScreen extends Screen {
         this.addRenderableWidget(createBtn);
 
         updateVisibilities();
+    }
+
+    private void changeVolume(int delta) {
+        int current = com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume();
+        int newVol = Math.max(0, Math.min(100, current + delta));
+        Minecraft mc = Minecraft.getInstance();
+        double target = newVol / 100.0;
+        //? if >1.19.2 {
+        mc.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MUSIC).set(target);
+        //?} else {
+        /*mc.options.setSoundCategoryVolume(net.minecraft.sounds.SoundSource.MUSIC, (float) target);
+         *///?}
+        mc.options.save();
+        com.skl.jammod.client.ClientAudioEngine.updateVolume();
     }
 
     private String getRepeatLabel() {
@@ -275,7 +289,6 @@ public class JamScreen extends Screen {
         boolean showQueue = inJam && currentTab == Tab.QUEUE;
         urlInput.visible = showQueue && canEdit;
         addBtn.visible = showQueue && canEdit;
-        playNowBtn.visible = showQueue && canEdit;
 
         // Tab 2: Members
         boolean showMembers = inJam && currentTab == Tab.MEMBERS;
@@ -299,6 +312,8 @@ public class JamScreen extends Screen {
         repeatBtn.setMessage(text(getRepeatLabel()));
         shuffleBtn.visible = inJam && canEdit;
         shuffleBtn.setMessage(text(ClientJamManager.isShuffle() ? "🔀 ON" : "🔀 OFF"));
+        volDownBtn.visible = inJam;
+        volUpBtn.visible = inJam;
 
         // Directory View
         nameInput.visible = !inJam;
@@ -307,7 +322,12 @@ public class JamScreen extends Screen {
     }
 
     private long getCurrentDuration() {
-        return ClientJamManager.getCurrentDuration();
+        int idx = ClientJamManager.getCurrentTrackIndex();
+        List<JamTrack> tracks = ClientJamManager.getTracks();
+        if (idx >= 0 && idx < tracks.size()) {
+            return tracks.get(idx).getDurationMs();
+        }
+        return 0L;
     }
 
     private static String formatTime(long ms) {
@@ -318,23 +338,22 @@ public class JamScreen extends Screen {
         return String.format("%02d:%02d", min, sec);
     }
 
-    //? if >=1.20.2 {
+    //? if >1.20.1 {
     /*@Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
         super.render(graphics, mouseX, mouseY, partialTick);
-        *///?} else if >=1.20 {
+    *///?} else if >1.19.4 {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(graphics);
         super.render(graphics, mouseX, mouseY, partialTick);
-    //?} else {
+        //?} else {
     /*@Override
     public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(poseStack);
         super.render(poseStack, mouseX, mouseY, partialTick);
     *///?}
-
         updateVisibilities();
 
         boolean inJam = ClientJamManager.isInJam();
@@ -451,11 +470,19 @@ public class JamScreen extends Screen {
 
         // Line 2: Played Song Subtext as Link
         if (!url.isEmpty()) {
-            String displayUrl = url.length() > 55 ? url.substring(0, 52) + "..." : url;
+            String displayUrl = url.length() > 50 ? url.substring(0, 47) + "..." : url;
             //? if >=1.20 {
-            graphics.drawString(this.font, "§7🔗 " + displayUrl, 10, barY + 15, 0x888888);
+            graphics.drawString(this.font, "§7🔗 " + displayUrl + " §8(Click to Copy)", 10, barY + 15, 0x888888);
+            graphics.drawString(this.font, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 4, 0xFFFFFF);
             //?} else {
-            /*this.font.draw(poseStack, "§7🔗 " + displayUrl, 10, barY + 15, 0x888888);
+            /*this.font.draw(poseStack, "§7🔗 " + displayUrl + " §8(Click to Copy)", 10, barY + 15, 0x888888);
+            this.font.draw(poseStack, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 4, 0xFFFFFF);
+             *///?}
+        } else {
+            //? if >=1.20 {
+            graphics.drawString(this.font, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 4, 0xFFFFFF);
+            //?} else {
+            /*this.font.draw(poseStack, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 4, 0xFFFFFF);
              *///?}
         }
 
@@ -653,7 +680,6 @@ public class JamScreen extends Screen {
         List<S2CSyncJamListPacket.JamSummary> dir = ClientJamManager.getDirectory();
 
         if (dir.isEmpty()) {
-            // First-Time / Empty State Onboarding Card
             int cardW = 320;
             int cardH = 145;
             int cardX = centerX - (cardW / 2);
@@ -766,9 +792,19 @@ public class JamScreen extends Screen {
         boolean inJam = ClientJamManager.isInJam();
 
         if (inJam) {
-            // Seekbar Click
             int barH = 50;
             int barY = this.height - barH;
+
+            // Copy Link Click
+            if (mouseY >= barY + 13 && mouseY <= barY + 23 && mouseX >= 10 && mouseX <= 250) {
+                String url = ClientJamManager.getCurrentTrackUrl();
+                if (!url.isEmpty()) {
+                    Minecraft.getInstance().keyboardHandler.setClipboard(url);
+                    return true;
+                }
+            }
+
+            // Seekbar Click
             int progressX = 10;
             int progressW = this.width - 20;
             int progressY = barY + 25;
@@ -793,22 +829,18 @@ public class JamScreen extends Screen {
                 for (int i = queueScrollOffset; i < tracks.size() && (i - queueScrollOffset) * 16 < listH; i++) {
                     int y = listY + (i - queueScrollOffset) * 16;
                     if (mouseY >= y && mouseY < y + 14) {
-                        // Play [▶]
                         if (mouseX >= this.width - 76 && mouseX < this.width - 62) {
                             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.JUMP_TRACK, "", "", false, i));
                             return true;
                         }
-                        // Up [▲]
                         if (mouseX >= this.width - 58 && mouseX < this.width - 44 && i > 0) {
                             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.MOVE_TRACK, "", "", false, i, i - 1));
                             return true;
                         }
-                        // Down [▼]
                         if (mouseX >= this.width - 40 && mouseX < this.width - 26 && i < tracks.size() - 1) {
                             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.MOVE_TRACK, "", "", false, i, i + 1));
                             return true;
                         }
-                        // Remove [✕]
                         if (mouseX >= this.width - 22 && mouseX < this.width - 8) {
                             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.REMOVE_TRACK, "", "", false, i));
                             return true;
@@ -826,12 +858,10 @@ public class JamScreen extends Screen {
                     SyncedJam.MemberInfo m = members.get(i);
                     int y = listY + (i - membersScrollOffset) * 16;
                     if (m.role() != SyncedJam.Role.OWNER && mouseY >= y && mouseY < y + 14) {
-                        // Role ⟳
                         if (mouseX >= this.width - 76 && mouseX < this.width - 34) {
                             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.CYCLE_MEMBER_ROLE, m.uuid().toString()));
                             return true;
                         }
-                        // Kick
                         if (mouseX >= this.width - 30 && mouseX < this.width - 8) {
                             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.REMOVE_MEMBER, m.uuid().toString()));
                             return true;
@@ -857,14 +887,14 @@ public class JamScreen extends Screen {
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    //? if >=1.20.2 {
+    //? if >1.20.1 {
     /*@Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         double delta = scrollY;
-        *///?} else {
+    *///?} else {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-    //?}
+        //?}
         if (ClientJamManager.isInJam()) {
             if (currentTab == Tab.QUEUE) {
                 queueScrollOffset -= (int) Math.signum(delta);
@@ -880,17 +910,19 @@ public class JamScreen extends Screen {
         return true;
     }
 
-    //? if >=1.20.2 {
+    //? if >1.20.4 {
     /*@Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        //? if >=1.20.5 {
-        /^this.renderTransparentBackground(graphics);
-        ^///?} else {
-        super.renderBackground(graphics, mouseX, mouseY, partialTick);
-         //?}
+        this.renderTransparentBackground(graphics);
         graphics.fill(0, 0, this.width, this.height, 0xCC000000);
     }
-    *///?} else if >=1.20 {
+    *///?} else if >1.20.1 {
+    /*@Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        super.renderBackground(graphics, mouseX, mouseY, partialTick);
+        graphics.fill(0, 0, this.width, this.height, 0xCC000000);
+    }
+    *///?} else if >1.19.4 {
     @Override
     public void renderBackground(GuiGraphics graphics) {
         super.renderBackground(graphics);
