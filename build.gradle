@@ -17,9 +17,17 @@ subprojects {
             dependsOn ':lavaplayer-bundle:shadowJar'
         }
 
-        // Force processResources to run before any runClient / runServer task
-        tasks.withType(JavaExec).configureEach {
-            dependsOn tasks.named('processResources')
+        // Defer until ForgeGradle registers runClient / runServer
+        afterEvaluate {
+            // Automatically switch Stonecutter active target before building or processing resources
+            tasks.matching { it.name in ['compileJava', 'processResources'] }.configureEach {
+                dependsOn rootProject.tasks.matching { it.name == "Set active project to ${project.name}" }
+            }
+
+            // Force all run tasks to execute processResources first
+            tasks.matching { it.name.startsWith('run') }.configureEach {
+                dependsOn tasks.named('processResources')
+            }
         }
     }
 

@@ -10,14 +10,14 @@
 
 ### Supported Minecraft & Loader Matrix
 
-| Minecraft Version | Mod Loader | Minimum Loader Version | Stonecutter Target |
+| Minecraft Version | Mod Loader | Minimum Loader Version | Target Project |
 | :--- | :--- | :--- | :--- |
-| **1.18.2** | Forge | 40.2.0+ | `1.18.2-forge` |
-| **1.19.2** | Forge | 43.3.0+ | `1.19.2-forge` |
-| **1.19.4** | Forge | 45.2.0+ | `1.19.4-forge` |
-| **1.20.1** | Forge | 47.1.0+ | `1.20.1-forge` |
-| **1.20.4** | NeoForge | 20.4.190+ | `1.20.4-neoforge` |
-| **1.21.1** | NeoForge | 21.1.65+ | `1.21.1-neoforge` |
+| **1.18.2** | Forge | 40.2.0+ | `:1.18.2-forge` |
+| **1.19.2** | Forge | 43.3.0+ | `:1.19.2-forge` |
+| **1.19.4** | Forge | 45.2.0+ | `:1.19.4-forge` |
+| **1.20.1** | Forge | 47.1.0+ | `:1.20.1-forge` |
+| **1.20.4** | NeoForge | 20.4.190+ | `:1.20.4-neoforge` |
+| **1.21.1** | NeoForge | 21.1.65+ | `:1.21.1-neoforge` |
 
 ---
 
@@ -30,10 +30,8 @@
 #### 2. Create a Jam Session
 * Enter a room name and click **Create Jam**, or run:
 
-```
-
+```text
 /jam create <name> [private]
-
 ```
 * **Public Jams** appear in the server directory for all players to discover and join.
 * **Private Jams** are hidden and require a direct invite from the Host or an Admin.
@@ -41,9 +39,9 @@
 #### 3. Add Music & Audio
 * Click **`[+ Add Track]`** and paste any stream URL.
 * Supported sources include:
-    - **YouTube** (videos, live streams, and playlists)
-    - **SoundCloud** tracks and playlists
-    - **Bandcamp**, **Twitch Streams**, and direct web audio files (`.mp3`, `.ogg`, `.flac`, `.wav`).
+  - **YouTube** (videos, live streams, and playlists)
+  - **SoundCloud** tracks and playlists
+  - **Bandcamp**, **Twitch Streams**, and direct web audio files (`.mp3`, `.ogg`, `.flac`, `.wav`).
 * Titles, artists, and song durations resolve automatically in the background.
 
 #### 4. Invite & Listen in Sync
@@ -113,31 +111,27 @@ When a new track begins, an unobtrusive "Now Playing" notification appears in yo
 
 ### Building from Source
 
-This project uses **Stonecutter** for multi-version management. The Lavaplayer dependency is bundled inside the mod using Jar-in-Jar.
+This project uses **Stonecutter** for multi-version management. The Lavaplayer dependency is bundled inside the mod using Jar-in-Jar. Version switching, resource replacement, and dependency bundling are handled automatically.
 
 ```bash
 # Clone the repository
-
 git clone https://github.com/4skl/JamMod.git
-
 cd JamMod
 ```
-#### --- Single Version Compilation ---
 
-##### Switch active Stonecutter project to any version:
+#### Run or Build a Single Target
+
+Thanks to automatic project switching, you do not need to set the active Stonecutter project manually. Gradle will swap the active branch and process resources for you whenever you build or run a version.
 
 ```bash
-./gradlew "Set active project to 1.20.4-neoforge"
+# Compile and build the JAR for a specific version:
+./gradlew :1.20.4-neoforge:build
 
-# Compile and build the active version JAR:
-./gradlew build
-
-# Run the test client for the active target:
-./gradlew runClient
+# Run the test client for a specific version:
+./gradlew :1.20.1-forge:runClient
 ```
 
-
-#### --- Multi-Version Compilation ---
+#### Build All Targets
 
 ##### Build release JARs for all supported Forge and NeoForge versions at once:
 
@@ -147,10 +141,8 @@ cd JamMod
 
 Compiled `.jar` files will be output to their respective `versions/<version>/build/libs/` directories.
 
-
+---
 
 ### License
-
-
 
 Distributed under the **MIT License**. See `LICENSE` for details.
