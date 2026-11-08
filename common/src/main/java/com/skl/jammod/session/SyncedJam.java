@@ -315,6 +315,7 @@ public class SyncedJam {
         ensureRuntimeState();
         if (index >= 0 && index < this.tracks.size()) {
             JamTrack old = this.tracks.get(index);
+            // URL first, Title second:
             this.tracks.set(index, new JamTrack(old.getUrl(), title, durationMs));
         }
     }

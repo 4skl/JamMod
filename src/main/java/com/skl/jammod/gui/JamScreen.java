@@ -1,6 +1,7 @@
 package com.skl.jammod.gui;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.skl.jammod.client.ClientAudioEngine;
 import com.skl.jammod.client.ClientJamManager;
 import com.skl.jammod.network.C2SJamActionPacket;
 import com.skl.jammod.network.ModNetworking;
@@ -9,10 +10,12 @@ import com.skl.jammod.session.JamEditPolicy;
 import com.skl.jammod.session.JamTrack;
 import com.skl.jammod.session.SyncedJam;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundSource;
 
 import java.util.List;
 
@@ -28,6 +31,57 @@ import net.minecraft.client.gui.GuiComponent;
  *///?}
 
 public class JamScreen extends Screen {
+    private static final String ICON_NOTE = "♪ ";
+    //? if >=1.20.1 {
+    private static final String ICON_MUSIC = "🎵 ";
+    private static final String ICON_MEMBERS = "👥 ";
+    private static final String ICON_SETTINGS = "⚙ ";
+    private static final String ICON_CLOSE = "✕";
+    private static final String ICON_PREV = "⏮";
+    private static final String ICON_PLAY = "▶";
+    private static final String ICON_PAUSE = "⏸";
+    private static final String ICON_NEXT = "⏭";
+    private static final String ICON_REPEAT_ALL = "🔁 ALL";
+    private static final String ICON_REPEAT_ONE = "🔂 ONE";
+    private static final String ICON_REPEAT_OFF = "🔁 OFF";
+    private static final String ICON_SHUFFLE_ON = "🔀 ON";
+    private static final String ICON_SHUFFLE_OFF = "🔀 OFF";
+    private static final String ICON_LINK = "🔗 ";
+    private static final String ICON_DELETE = "🗑 ";
+    private static final String ICON_INVITE = "✉ ";
+    private static final String ICON_LOCK = "🔒 ";
+    private static final String BTN_UP = "▲";
+    private static final String BTN_DOWN = "▼";
+    private static final String BTN_PLAY = "▶";
+    private static final String BTN_CLOSE = "✕";
+    private static final String BTN_ROLE = "Role ⟳";
+    private static final String BULLET = " • ";
+    //?} else {
+    /*private static final String ICON_MUSIC = "";
+    private static final String ICON_MEMBERS = "";
+    private static final String ICON_SETTINGS = "";
+    private static final String ICON_CLOSE = "X";
+    private static final String ICON_PREV = "|<";
+    private static final String ICON_PLAY = ">";
+    private static final String ICON_PAUSE = "||";
+    private static final String ICON_NEXT = ">|";
+    private static final String ICON_REPEAT_ALL = "Repeat: ALL";
+    private static final String ICON_REPEAT_ONE = "Repeat: ONE";
+    private static final String ICON_REPEAT_OFF = "Repeat: OFF";
+    private static final String ICON_SHUFFLE_ON = "Shuffle: ON";
+    private static final String ICON_SHUFFLE_OFF = "Shuffle: OFF";
+    private static final String ICON_LINK = "";
+    private static final String ICON_DELETE = "";
+    private static final String ICON_INVITE = "";
+    private static final String ICON_LOCK = "[Private] ";
+    private static final String BTN_UP = "^";
+    private static final String BTN_DOWN = "v";
+    private static final String BTN_PLAY = ">";
+    private static final String BTN_CLOSE = "X";
+    private static final String BTN_ROLE = "Role >";
+    private static final String BULLET = " - ";
+    *///?}
+
     public enum Tab {
         QUEUE, MEMBERS, SETTINGS
     }
@@ -35,11 +89,10 @@ public class JamScreen extends Screen {
     private Tab currentTab = Tab.QUEUE;
     private boolean createIsPrivate = false;
 
-    // Header & Global Buttons
+    // Header & Navigation
+    private Button closeBtn;
     private Button refreshBtn;
     private Button leaveBtn;
-
-    // Tab Navigation Buttons
     private Button queueTabBtn;
     private Button membersTabBtn;
     private Button settingsTabBtn;
@@ -57,20 +110,18 @@ public class JamScreen extends Screen {
     private Button policyBtn;
     private Button deleteJamBtn;
 
-    // Player Bar Controls
+    // Bottom Player Controls
     private Button prevBtn;
     private Button togglePlayBtn;
     private Button skipBtn;
     private Button repeatBtn;
     private Button shuffleBtn;
-    private Button volDownBtn;
-    private Button volUpBtn;
+    private VolumeSlider volumeSlider;
 
     // Directory View Widgets
     private EditBox nameInput;
     private Button createPrivacyBtn;
     private Button createBtn;
-    private Button closeBtn;
 
     // Scroll Offsets
     private int queueScrollOffset = 0;
@@ -101,6 +152,29 @@ public class JamScreen extends Screen {
          *///?}
     }
 
+    private class VolumeSlider extends AbstractSliderButton {
+        public VolumeSlider(int x, int y, int width, int height, double value) {
+            super(x, y, width, height, text("Vol: " + (int) Math.round(value * 100.0) + "%"), value);
+        }
+
+        @Override
+        protected void updateMessage() {
+            this.setMessage(text("Vol: " + (int) Math.round(this.value * 100.0) + "%"));
+        }
+
+        @Override
+        protected void applyValue() {
+            Minecraft mc = Minecraft.getInstance();
+            //? if >1.19.2 {
+            mc.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(this.value);
+            //?} else {
+            /*mc.options.setSoundCategoryVolume(SoundSource.MUSIC, (float) this.value);
+             *///?}
+            mc.options.save();
+            ClientAudioEngine.updateVolume();
+        }
+    }
+
     @Override
     protected void init() {
         super.init();
@@ -108,8 +182,8 @@ public class JamScreen extends Screen {
 
         int centerX = this.width / 2;
 
-        // --- Global Navigation ---
-        closeBtn = createButton(text("✕"), this.width - 24, 8, 18, 18, b -> this.onClose());
+        // Top Navigation
+        closeBtn = createButton(text(BTN_CLOSE), this.width - 24, 8, 18, 18, b -> this.onClose());
         this.addRenderableWidget(closeBtn);
 
         refreshBtn = createButton(text("Refresh"), this.width - 82, 8, 55, 18, b -> {
@@ -123,31 +197,30 @@ public class JamScreen extends Screen {
         });
         this.addRenderableWidget(leaveBtn);
 
-        // Tab Navigation Buttons
-        queueTabBtn = createButton(text("🎵 Queue"), 10, 6, 65, 18, b -> {
+        queueTabBtn = createButton(text(ICON_NOTE + "Queue"), 10, 6, 80, 18, b -> {
             currentTab = Tab.QUEUE;
             updateVisibilities();
         });
         this.addRenderableWidget(queueTabBtn);
 
-        membersTabBtn = createButton(text("👥 Members"), 78, 6, 75, 18, b -> {
+        membersTabBtn = createButton(text("Members"), 94, 6, 75, 18, b -> {
             currentTab = Tab.MEMBERS;
             updateVisibilities();
         });
         this.addRenderableWidget(membersTabBtn);
 
-        settingsTabBtn = createButton(text("⚙ Settings"), 156, 6, 65, 18, b -> {
+        settingsTabBtn = createButton(text("Settings"), 173, 6, 75, 18, b -> {
             currentTab = Tab.SETTINGS;
             updateVisibilities();
         });
         this.addRenderableWidget(settingsTabBtn);
 
-        // Tab 1: Queue Widgets
-        urlInput = new EditBox(this.font, 10, this.height - 76, this.width - 120, 18, text("Stream URL"));
+        // Tab 1: Queue Input
+        urlInput = new EditBox(this.font, 10, this.height - 82, this.width - 120, 18, text("Stream URL"));
         urlInput.setMaxLength(2048);
         this.addRenderableWidget(urlInput);
 
-        addBtn = createButton(text("+ Add Track"), this.width - 105, this.height - 76, 95, 18, b -> {
+        addBtn = createButton(text("+ Add Track"), this.width - 105, this.height - 82, 95, 18, b -> {
             String url = urlInput.getValue().trim();
             if (!url.isEmpty()) {
                 ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.ADD_TRACK, "", url, false, 0));
@@ -156,12 +229,12 @@ public class JamScreen extends Screen {
         });
         this.addRenderableWidget(addBtn);
 
-        // Tab 2: Members Widgets
-        inviteInput = new EditBox(this.font, 10, this.height - 76, this.width - 135, 18, text("Player Name"));
+        // Tab 2: Members Input
+        inviteInput = new EditBox(this.font, 10, this.height - 82, this.width - 135, 18, text("Player Name"));
         inviteInput.setMaxLength(32);
         this.addRenderableWidget(inviteInput);
 
-        inviteBtn = createButton(text("✉ Invite Player"), this.width - 120, this.height - 76, 110, 18, b -> {
+        inviteBtn = createButton(text("Invite Player"), this.width - 120, this.height - 82, 110, 18, b -> {
             String name = inviteInput.getValue().trim();
             if (!name.isEmpty()) {
                 ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.INVITE_PLAYER, "", name));
@@ -170,7 +243,7 @@ public class JamScreen extends Screen {
         });
         this.addRenderableWidget(inviteBtn);
 
-        // Tab 3: Settings Widgets
+        // Tab 3: Settings Buttons
         privacyBtn = createButton(text("Privacy: " + (ClientJamManager.isPrivate() ? "Private" : "Public")), centerX - 100, 48, 200, 20, b -> {
             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_PRIVACY));
         });
@@ -181,53 +254,51 @@ public class JamScreen extends Screen {
         });
         this.addRenderableWidget(policyBtn);
 
-        deleteJamBtn = createButton(text("🗑 Delete Jam Room"), centerX - 100, 106, 200, 20, b -> {
+        deleteJamBtn = createButton(text("Delete Jam Room"), centerX - 100, 106, 200, 20, b -> {
             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.DELETE_JAM, ClientJamManager.getJamId()));
             this.onClose();
         });
         this.addRenderableWidget(deleteJamBtn);
 
-        // Bottom Player Bar Controls
-        int playerBarY = this.height - 18;
-        prevBtn = createButton(text("⏮"), centerX - 42, playerBarY, 24, 15, b -> {
+        // Player Controls
+        int playerBarY = this.height - 22;
+        prevBtn = createButton(text(ICON_PREV), centerX - 42, playerBarY, 24, 18, b -> {
             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.PREVIOUS));
         });
         this.addRenderableWidget(prevBtn);
 
-        togglePlayBtn = createButton(text(ClientJamManager.isPlaying() ? "⏸" : "▶"), centerX - 15, playerBarY, 30, 15, b -> {
+        togglePlayBtn = createButton(text(ClientJamManager.isPlaying() ? ICON_PAUSE : ICON_PLAY), centerX - 15, playerBarY, 30, 18, b -> {
             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_PLAY));
         });
         this.addRenderableWidget(togglePlayBtn);
 
-        skipBtn = createButton(text("⏭"), centerX + 18, playerBarY, 24, 15, b -> {
+        skipBtn = createButton(text(ICON_NEXT), centerX + 18, playerBarY, 24, 18, b -> {
             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SKIP));
         });
         this.addRenderableWidget(skipBtn);
 
-        repeatBtn = createButton(text(getRepeatLabel()), 10, playerBarY, 52, 15, b -> {
+        repeatBtn = createButton(text(getRepeatLabel()), 10, playerBarY, 65, 18, b -> {
             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.CYCLE_REPEAT));
         });
         this.addRenderableWidget(repeatBtn);
 
-        shuffleBtn = createButton(text(ClientJamManager.isShuffle() ? "🔀 ON" : "🔀 OFF"), 65, playerBarY, 48, 15, b -> {
+        shuffleBtn = createButton(text(ClientJamManager.isShuffle() ? ICON_SHUFFLE_ON : ICON_SHUFFLE_OFF), 78, playerBarY, 60, 18, b -> {
             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_SHUFFLE));
         });
         this.addRenderableWidget(shuffleBtn);
 
-        volDownBtn = createButton(text("-"), this.width - 50, playerBarY, 15, 15, b -> changeVolume(-10));
-        this.addRenderableWidget(volDownBtn);
+        double musicVol = Minecraft.getInstance().options.getSoundSourceVolume(SoundSource.MUSIC);
+        volumeSlider = new VolumeSlider(this.width - 95, playerBarY, 85, 18, musicVol);
+        this.addRenderableWidget(volumeSlider);
 
-        volUpBtn = createButton(text("+"), this.width - 15, playerBarY, 15, 15, b -> changeVolume(10));
-        this.addRenderableWidget(volUpBtn);
-
-        // Directory View Widgets
+        // Directory View Inputs
         nameInput = new EditBox(this.font, 10, this.height - 25, this.width - 200, 18, text("Jam Name"));
         nameInput.setMaxLength(32);
         this.addRenderableWidget(nameInput);
 
-        createPrivacyBtn = createButton(text(createIsPrivate ? "🔒 Private" : "Public"), this.width - 185, this.height - 25, 75, 18, b -> {
+        createPrivacyBtn = createButton(text(createIsPrivate ? "[Private]" : "[Public]"), this.width - 185, this.height - 25, 75, 18, b -> {
             createIsPrivate = !createIsPrivate;
-            createPrivacyBtn.setMessage(text(createIsPrivate ? "🔒 Private" : "Public"));
+            createPrivacyBtn.setMessage(text(createIsPrivate ? "[Private]" : "[Public]"));
         });
         this.addRenderableWidget(createPrivacyBtn);
 
@@ -243,27 +314,13 @@ public class JamScreen extends Screen {
         updateVisibilities();
     }
 
-    private void changeVolume(int delta) {
-        int current = com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume();
-        int newVol = Math.max(0, Math.min(100, current + delta));
-        Minecraft mc = Minecraft.getInstance();
-        double target = newVol / 100.0;
-        //? if >1.19.2 {
-        mc.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MUSIC).set(target);
-        //?} else {
-        /*mc.options.setSoundCategoryVolume(net.minecraft.sounds.SoundSource.MUSIC, (float) target);
-         *///?}
-        mc.options.save();
-        com.skl.jammod.client.ClientAudioEngine.updateVolume();
-    }
-
     private String getRepeatLabel() {
         SyncedJam.RepeatMode mode = ClientJamManager.getRepeatMode();
-        if (mode == null) return "🔁 OFF";
+        if (mode == null) return ICON_REPEAT_OFF;
         return switch (mode) {
-            case ALL -> "🔁 ALL";
-            case ONE -> "🔂 ONE";
-            default -> "🔁 OFF";
+            case ALL -> ICON_REPEAT_ALL;
+            case ONE -> ICON_REPEAT_ONE;
+            default -> ICON_REPEAT_OFF;
         };
     }
 
@@ -273,7 +330,6 @@ public class JamScreen extends Screen {
         boolean isOwner = ClientJamManager.isOwner();
         boolean canManage = ClientJamManager.canManage();
 
-        // Header
         refreshBtn.visible = true;
         leaveBtn.visible = inJam;
         queueTabBtn.visible = inJam;
@@ -281,21 +337,18 @@ public class JamScreen extends Screen {
         settingsTabBtn.visible = inJam;
 
         if (inJam) {
-            queueTabBtn.setMessage(text("🎵 Queue (" + ClientJamManager.getTracks().size() + ")"));
-            membersTabBtn.setMessage(text("👥 Members (" + ClientJamManager.getMembers().size() + ")"));
+            queueTabBtn.setMessage(text(ICON_NOTE + "Queue (" + ClientJamManager.getTracks().size() + ")"));
+            membersTabBtn.setMessage(text("Members (" + ClientJamManager.getMembers().size() + ")"));
         }
 
-        // Tab 1: Queue
         boolean showQueue = inJam && currentTab == Tab.QUEUE;
         urlInput.visible = showQueue && canEdit;
         addBtn.visible = showQueue && canEdit;
 
-        // Tab 2: Members
         boolean showMembers = inJam && currentTab == Tab.MEMBERS;
         inviteInput.visible = showMembers && canManage;
         inviteBtn.visible = showMembers && canManage;
 
-        // Tab 3: Settings
         boolean showSettings = inJam && currentTab == Tab.SETTINGS;
         privacyBtn.visible = showSettings && isOwner;
         privacyBtn.setMessage(text("Privacy: " + (ClientJamManager.isPrivate() ? "Private" : "Public")));
@@ -303,19 +356,16 @@ public class JamScreen extends Screen {
         policyBtn.setMessage(text("Edit Policy: " + ClientJamManager.getEditPolicy().name()));
         deleteJamBtn.visible = showSettings && isOwner;
 
-        // Bottom Player Bar
         prevBtn.visible = inJam && canEdit;
         togglePlayBtn.visible = inJam && canEdit;
-        togglePlayBtn.setMessage(text(ClientJamManager.isPlaying() ? "⏸" : "▶"));
+        togglePlayBtn.setMessage(text(ClientJamManager.isPlaying() ? ICON_PAUSE : ICON_PLAY));
         skipBtn.visible = inJam && canEdit;
         repeatBtn.visible = inJam && canEdit;
         repeatBtn.setMessage(text(getRepeatLabel()));
         shuffleBtn.visible = inJam && canEdit;
-        shuffleBtn.setMessage(text(ClientJamManager.isShuffle() ? "🔀 ON" : "🔀 OFF"));
-        volDownBtn.visible = inJam;
-        volUpBtn.visible = inJam;
+        shuffleBtn.setMessage(text(ClientJamManager.isShuffle() ? ICON_SHUFFLE_ON : ICON_SHUFFLE_OFF));
+        volumeSlider.visible = inJam;
 
-        // Directory View
         nameInput.visible = !inJam;
         createPrivacyBtn.visible = !inJam;
         createBtn.visible = !inJam;
@@ -338,6 +388,30 @@ public class JamScreen extends Screen {
         return String.format("%02d:%02d", min, sec);
     }
 
+    // Defensive helper to ensure the song title is always on line 1 and the URL on line 2
+    private static String[] resolveDisplayNames(String rawTitle, String rawUrl) {
+        String title = (rawTitle != null) ? rawTitle.trim() : "";
+        String url = (rawUrl != null) ? rawUrl.trim() : "";
+
+        boolean titleIsUrl = title.startsWith("http://") || title.startsWith("https://") || title.contains("youtu.be");
+        boolean urlIsUrl = url.startsWith("http://") || url.startsWith("https://") || url.contains("youtu.be");
+
+        if (titleIsUrl && !urlIsUrl && !url.isBlank()) {
+            String tmp = title;
+            title = url;
+            url = tmp;
+        }
+
+        if (title.isBlank() && !url.isBlank()) {
+            title = url;
+            url = "";
+        } else if (title.equalsIgnoreCase(url)) {
+            url = "";
+        }
+
+        return new String[]{title, url};
+    }
+
     //? if >1.20.1 {
     /*@Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
@@ -354,7 +428,6 @@ public class JamScreen extends Screen {
         updateVisibilities();
 
         boolean inJam = ClientJamManager.isInJam();
-
         if (inJam) {
             renderSession(
                     //? if >=1.20 {
@@ -382,15 +455,11 @@ public class JamScreen extends Screen {
          *///?}
     }
 
-    // Session Rendering (Inside a Jam)
     //? if >=1.20 {
     private void renderSession(GuiGraphics graphics, int mouseX, int mouseY) {
         //?} else {
         /*private void renderSession(PoseStack poseStack, int mouseX, int mouseY) {
          *///?}
-        int centerX = this.width / 2;
-
-        // Render Active Tab Content
         switch (currentTab) {
             case QUEUE -> renderQueueTab(
                     //? if >=1.20 {
@@ -417,47 +486,33 @@ public class JamScreen extends Screen {
             );
         }
 
-        // Fixed Bottom Player Bar
-        int barH = 52;
+        // Expanded, fully-opaque player bar (no chat bleed)
+        int barH = 56;
         int barY = this.height - barH;
 
         //? if >=1.20 {
-        graphics.fill(0, barY, this.width, this.height, 0xF0101014);
+        graphics.fill(0, barY, this.width, this.height, 0xFF111114);
         graphics.fill(0, barY, this.width, barY + 1, 0xFFFFAA00);
-        graphics.fill(0, barY + 1, this.width, barY + 2, 0x33FFAA00);
         //?} else {
-        /*GuiComponent.fill(poseStack, 0, barY, this.width, this.height, 0xF0101014);
+        /*GuiComponent.fill(poseStack, 0, barY, this.width, this.height, 0xFF111114);
         GuiComponent.fill(poseStack, 0, barY, this.width, barY + 1, 0xFFFFAA00);
-        GuiComponent.fill(poseStack, 0, barY + 1, this.width, barY + 2, 0x33FFAA00);
         *///?}
 
-        // --- Player Header (Now Playing & Link Subtext) ---
-        String url = ClientJamManager.getCurrentTrackUrl();
         int idx = ClientJamManager.getCurrentTrackIndex();
         List<JamTrack> trackList = ClientJamManager.getTracks();
 
-        String trackTitle = ClientJamManager.getCurrentTrackTitle();
-        if (trackTitle == null) trackTitle = "";
-
-        String trackUrl = url;
-        if (trackUrl == null) trackUrl = "";
+        String rawTitle = ClientJamManager.getCurrentTrackTitle();
+        String rawUrl = ClientJamManager.getCurrentTrackUrl();
 
         if (idx >= 0 && idx < trackList.size()) {
-            JamTrack current = trackList.get(idx);
-            if (current.getTitle() != null && !current.getTitle().isBlank()) {
-                trackTitle = current.getTitle();
-            }
-            if (trackUrl.isEmpty()) {
-                trackUrl = current.getUrl();
-            }
+            JamTrack cur = trackList.get(idx);
+            if (rawTitle == null || rawTitle.isBlank()) rawTitle = cur.getTitle();
+            if (rawUrl == null || rawUrl.isBlank()) rawUrl = cur.getUrl();
         }
 
-        String displayTitle = !trackTitle.isEmpty() ? trackTitle : (!trackUrl.isEmpty() ? trackUrl : "No track playing");
-        if (displayTitle.length() > 42) displayTitle = displayTitle.substring(0, 40) + "...";
-
-        if (displayTitle.equals(trackUrl) || displayTitle.equals(trackUrl.substring(0, Math.min(trackUrl.length(), 40)) + "...")) {
-            trackUrl = "";
-        }
+        String[] resolved = resolveDisplayNames(rawTitle, rawUrl);
+        String songName = resolved[0].isBlank() ? "No track playing" : resolved[0];
+        String songUrl = resolved[1];
 
         long dur = getCurrentDuration();
         long pos = ClientJamManager.isPlaying() ? (System.currentTimeMillis() - ClientJamManager.getStartTimestamp()) : 0L;
@@ -466,47 +521,56 @@ public class JamScreen extends Screen {
 
         String timeStr = formatTime(pos) + " / " + formatTime(dur);
 
-        // Line 1: Track Title & Time
+        int maxTitleW = this.width - this.font.width(timeStr) - 30;
+        String displayTitle = songName;
+        if (this.font.width(displayTitle) > maxTitleW) {
+            while (displayTitle.length() > 4 && this.font.width(displayTitle + "...") > maxTitleW) {
+                displayTitle = displayTitle.substring(0, displayTitle.length() - 1);
+            }
+            displayTitle += "...";
+        }
+
+        // Line 1: Song Name in white
         //? if >=1.20 {
-        graphics.drawString(this.font, "§6🎵 Now Playing: §f" + displayTitle, 10, barY + 4, 0xFFFFFF);
+        graphics.drawString(this.font, "§6" + ICON_NOTE + "Now Playing: §f" + displayTitle, 10, barY + 4, 0xFFFFFF);
         graphics.drawString(this.font, "§e" + timeStr, this.width - this.font.width(timeStr) - 10, barY + 4, 0xFFFFFF);
         //?} else {
-        /*this.font.draw(poseStack, "§6🎵 Now Playing: §f" + displayTitle, 10, barY + 4, 0xFFFFFF);
+        /*this.font.draw(poseStack, "§6" + ICON_NOTE + "Now Playing: §f" + displayTitle, 10, barY + 4, 0xFFFFFF);
         this.font.draw(poseStack, "§e" + timeStr, this.width - this.font.width(timeStr) - 10, barY + 4, 0xFFFFFF);
         *///?}
 
-        // Line 2: Played Song Subtext as Link
-        if (!trackUrl.isEmpty()) {
-            String displayUrl = trackUrl.length() > 50 ? trackUrl.substring(0, 47) + "..." : trackUrl;
+        // Line 2: URL Grayed Underneath
+        if (!songUrl.isBlank()) {
+            int maxUrlW = this.width - 25;
+            String displayUrl = songUrl;
+            if (this.font.width(displayUrl) > maxUrlW) {
+                while (displayUrl.length() > 4 && this.font.width(displayUrl + "...") > maxUrlW) {
+                    displayUrl = displayUrl.substring(0, displayUrl.length() - 1);
+                }
+                displayUrl += "...";
+            }
+
             //? if >=1.20 {
-            graphics.drawString(this.font, "§7🔗 " + displayUrl + " §8(Click to Copy)", 10, barY + 15, 0x888888);
-            graphics.drawString(this.font, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 15, 0xFFFFFF);
+            graphics.drawString(this.font, "§7" + displayUrl + " §8(Click to Copy)", 10, barY + 15, 0x888888);
             //?} else {
-            /*this.font.draw(poseStack, "§7🔗 " + displayUrl + " §8(Click to Copy)", 10, barY + 15, 0x888888);
-            this.font.draw(poseStack, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 15, 0xFFFFFF);
-             *///?}
-        } else {
-            //? if >=1.20 {
-            graphics.drawString(this.font, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 15, 0xFFFFFF);
-            //?} else {
-            /*this.font.draw(poseStack, "🔊 " + com.skl.jammod.client.ClientAudioEngine.getCurrentCalculatedVolume() + "%", this.width - 90, barY + 15, 0xFFFFFF);
+            /*this.font.draw(poseStack, "§7" + displayUrl + " §8(Click to Copy)", 10, barY + 15, 0x888888);
              *///?}
         }
 
         // Timeline Progress Bar
         int progressX = 10;
         int progressW = this.width - 20;
-        int progressY = barY + 26;
+        int progressY = barY + 25;
 
         //? if >=1.20 {
-        graphics.fill(progressX, progressY, progressX + progressW, progressY + 4, 0xFF222228);
+        graphics.fill(progressX, progressY, progressX + progressW, progressY + 4, 0xFF333333);
         if (dur > 0) {
             int filled = (int) (((double) pos / dur) * progressW);
             graphics.fill(progressX, progressY, progressX + filled, progressY + 4, 0xFFFFAA00);
             graphics.fill(progressX + filled - 1, progressY - 1, progressX + filled + 2, progressY + 5, 0xFFFFFFFF);
         }
         //?} else {
-        /*GuiComponent.fill(poseStack, progressX, progressY, progressX + progressW, progressY + 4, 0xFF222228);
+        /*GuiComponent.fill(poseStack, progressX, progressY, progressX + progressW, progressY + 4, 0xFF333333);
         if (dur > 0) {
             int filled = (int) (((double) pos / dur) * progressW);
             GuiComponent.fill(poseStack, progressX, progressY, progressX + filled, progressY + 4, 0xFFFFAA00);
@@ -515,7 +579,6 @@ public class JamScreen extends Screen {
         *///?}
     }
 
-    // Tab 1: Queue Render
     //? if >=1.20 {
     private void renderQueueTab(GuiGraphics graphics, int mouseX, int mouseY) {
         //?} else {
@@ -523,7 +586,7 @@ public class JamScreen extends Screen {
          *///?}
         List<JamTrack> tracks = ClientJamManager.getTracks();
         int listY = 30;
-        int listH = this.height - 110;
+        int listH = this.height - 118;
         boolean canEdit = ClientJamManager.canEdit();
 
         if (tracks.isEmpty()) {
@@ -535,29 +598,45 @@ public class JamScreen extends Screen {
             return;
         }
 
-        for (int i = queueScrollOffset; i < tracks.size() && (i - queueScrollOffset) * 16 < listH; i++) {
+        int rowHeight = 20;
+        for (int i = queueScrollOffset; i < tracks.size() && (i - queueScrollOffset) * rowHeight < listH; i++) {
             JamTrack t = tracks.get(i);
-            int y = listY + (i - queueScrollOffset) * 16;
+            int y = listY + (i - queueScrollOffset) * rowHeight;
             boolean isCur = (i == ClientJamManager.getCurrentTrackIndex());
 
-            if (mouseX >= 8 && mouseX <= this.width - 8 && mouseY >= y && mouseY < y + 14) {
+            if (mouseX >= 8 && mouseX <= this.width - 8 && mouseY >= y && mouseY < y + 18) {
                 //? if >=1.20 {
-                graphics.fill(8, y - 1, this.width - 8, y + 14, 0x22FFFFFF);
+                graphics.fill(8, y - 1, this.width - 8, y + 18, 0x22FFFFFF);
                 //?} else {
-                /*GuiComponent.fill(poseStack, 8, y - 1, this.width - 8, y + 14, 0x22FFFFFF);
+                /*GuiComponent.fill(poseStack, 8, y - 1, this.width - 8, y + 18, 0x22FFFFFF);
                  *///?}
             }
 
-            String prefix = isCur ? "§a▶ " : "§7";
-            String tTitle = t.getTitle().isEmpty() ? t.getUrl() : t.getTitle();
-            if (tTitle.length() > 36) tTitle = tTitle.substring(0, 34) + "...";
+            String prefix = isCur ? "§a" + BTN_PLAY + " " : "§7";
+            String[] resolved = resolveDisplayNames(t.getTitle(), t.getUrl());
+            String title = resolved[0];
+            String url = resolved[1];
+
+            if (title.length() > 36) title = title.substring(0, 34) + "...";
             String dur = t.getDurationMs() > 0 ? " §8(" + formatTime(t.getDurationMs()) + ")" : "";
 
-            //? if >=1.20 {
-            graphics.drawString(this.font, prefix + (i + 1) + ". §f" + tTitle + dur, 12, y + 2, 0xFFFFFF);
-            //?} else {
-            /*this.font.draw(poseStack, prefix + (i + 1) + ". §f" + tTitle + dur, 12, y + 2, 0xFFFFFF);
-             *///?}
+            if (!url.isBlank()) {
+                String subUrl = url.length() > 46 ? url.substring(0, 43) + "..." : url;
+                // Line 1: Song Title
+                //? if >=1.20 {
+                graphics.drawString(this.font, prefix + (i + 1) + ". §f" + title + dur, 12, y + 1, 0xFFFFFF);
+                graphics.drawString(this.font, "   §7" + subUrl, 12, y + 10, 0x888888);
+                //?} else {
+                /*this.font.draw(poseStack, prefix + (i + 1) + ". §f" + title + dur, 12, y + 1, 0xFFFFFF);
+                this.font.draw(poseStack, "   §7" + subUrl, 12, y + 10, 0x888888);
+                *///?}
+            } else {
+                //? if >=1.20 {
+                graphics.drawString(this.font, prefix + (i + 1) + ". §f" + title + dur, 12, y + 5, 0xFFFFFF);
+                //?} else {
+                /*this.font.draw(poseStack, prefix + (i + 1) + ". §f" + title + dur, 12, y + 5, 0xFFFFFF);
+                 *///?}
+            }
 
             if (canEdit) {
                 drawMiniButton(
@@ -566,7 +645,7 @@ public class JamScreen extends Screen {
                         //?} else {
                         /*poseStack,
                          *///?}
-                        "▶", this.width - 76, y, 14, 12, mouseX, mouseY
+                        BTN_PLAY, this.width - 76, y + 3, 14, 13, mouseX, mouseY
                 );
                 drawMiniButton(
                         //? if >=1.20 {
@@ -574,7 +653,7 @@ public class JamScreen extends Screen {
                         //?} else {
                         /*poseStack,
                          *///?}
-                        "▲", this.width - 58, y, 14, 12, mouseX, mouseY
+                        BTN_UP, this.width - 58, y + 3, 14, 13, mouseX, mouseY
                 );
                 drawMiniButton(
                         //? if >=1.20 {
@@ -582,7 +661,7 @@ public class JamScreen extends Screen {
                         //?} else {
                         /*poseStack,
                          *///?}
-                        "▼", this.width - 40, y, 14, 12, mouseX, mouseY
+                        BTN_DOWN, this.width - 40, y + 3, 14, 13, mouseX, mouseY
                 );
                 drawMiniButton(
                         //? if >=1.20 {
@@ -590,13 +669,12 @@ public class JamScreen extends Screen {
                         //?} else {
                         /*poseStack,
                          *///?}
-                        "✕", this.width - 22, y, 14, 12, mouseX, mouseY
+                        BTN_CLOSE, this.width - 22, y + 3, 14, 13, mouseX, mouseY
                 );
             }
         }
     }
 
-    // Tab 2: Members Render
     //? if >=1.20 {
     private void renderMembersTab(GuiGraphics graphics, int mouseX, int mouseY) {
         //?} else {
@@ -604,7 +682,7 @@ public class JamScreen extends Screen {
          *///?}
         List<SyncedJam.MemberInfo> members = ClientJamManager.getMembers();
         int listY = 30;
-        int listH = this.height - 110;
+        int listH = this.height - 118;
         boolean canManage = ClientJamManager.canManage();
 
         for (int i = membersScrollOffset; i < members.size() && (i - membersScrollOffset) * 16 < listH; i++) {
@@ -639,7 +717,7 @@ public class JamScreen extends Screen {
                         //?} else {
                         /*poseStack,
                          *///?}
-                        "Role ⟳", this.width - 76, y, 42, 12, mouseX, mouseY
+                        "Role >", this.width - 76, y, 42, 12, mouseX, mouseY
                 );
                 drawMiniButton(
                         //? if >=1.20 {
@@ -653,7 +731,6 @@ public class JamScreen extends Screen {
         }
     }
 
-    // Tab 3: Settings Render
     //? if >=1.20 {
     private void renderSettingsTab(GuiGraphics graphics) {
         //?} else {
@@ -669,7 +746,6 @@ public class JamScreen extends Screen {
         *///?}
     }
 
-    // Directory View Render (When not in a Jam)
     //? if >=1.20 {
     private void renderDirectory(GuiGraphics graphics, int mouseX, int mouseY) {
         //?} else {
@@ -677,7 +753,6 @@ public class JamScreen extends Screen {
          *///?}
         int centerX = this.width / 2;
 
-        // Header
         //? if >=1.20 {
         graphics.drawCenteredString(this.font, "§6§lActive Jam Sessions", centerX, 10, 0xFFFFFF);
         //?} else {
@@ -743,14 +818,14 @@ public class JamScreen extends Screen {
                 }
 
                 String privacyBadge = sum.isPrivate() ? "§c[Private]" : "§a[Public]";
-                String playing = sum.isPlaying() ? "§6🎵 " + sum.currentTrackTitle() : "§8(Idle)";
+                String playing = sum.isPlaying() ? "§6" + ICON_NOTE + sum.currentTrackTitle() : "§8(Idle)";
 
                 //? if >=1.20 {
                 graphics.drawString(this.font, "§f" + sum.name() + " " + privacyBadge + " §7by " + sum.ownerName(), 12, y + 2, 0xFFFFFF);
-                graphics.drawString(this.font, "§7" + sum.listeners() + " listeners  •  " + playing, 12, y + 11, 0x888888);
+                graphics.drawString(this.font, "§7" + sum.listeners() + " listeners - " + playing, 12, y + 11, 0x888888);
                 //?} else {
                 /*this.font.draw(poseStack, "§f" + sum.name() + " " + privacyBadge + " §7by " + sum.ownerName(), 12, y + 2, 0xFFFFFF);
-                this.font.draw(poseStack, "§7" + sum.listeners() + " listeners  •  " + playing, 12, y + 11, 0x888888);
+                this.font.draw(poseStack, "§7" + sum.listeners() + " listeners - " + playing, 12, y + 11, 0x888888);
                 *///?}
 
                 if (!sum.isPrivate()) {
@@ -767,7 +842,6 @@ public class JamScreen extends Screen {
         }
     }
 
-    // Mini Action Button Renderer
     //? if >=1.20 {
     private void drawMiniButton(GuiGraphics graphics, String label, int x, int y, int w, int h, int mouseX, int mouseY) {
         //?} else {
@@ -799,19 +873,19 @@ public class JamScreen extends Screen {
         boolean inJam = ClientJamManager.isInJam();
 
         if (inJam) {
-            int barH = 50;
+            int barH = 56;
             int barY = this.height - barH;
 
-            // Copy Link Click
-            if (mouseY >= barY + 13 && mouseY <= barY + 23 && mouseX >= 10 && mouseX <= 250) {
+            // Copy Link
+            if (mouseY >= barY + 13 && mouseY <= barY + 23 && mouseX >= 10 && mouseX <= this.width - 10) {
                 String url = ClientJamManager.getCurrentTrackUrl();
-                if (!url.isEmpty()) {
+                if (url != null && !url.isEmpty()) {
                     Minecraft.getInstance().keyboardHandler.setClipboard(url);
                     return true;
                 }
             }
 
-            // Seekbar Click
+            // Seekbar
             int progressX = 10;
             int progressW = this.width - 20;
             int progressY = barY + 25;
@@ -832,10 +906,11 @@ public class JamScreen extends Screen {
             if (currentTab == Tab.QUEUE && ClientJamManager.canEdit()) {
                 List<JamTrack> tracks = ClientJamManager.getTracks();
                 int listY = 30;
-                int listH = this.height - 110;
-                for (int i = queueScrollOffset; i < tracks.size() && (i - queueScrollOffset) * 16 < listH; i++) {
-                    int y = listY + (i - queueScrollOffset) * 16;
-                    if (mouseY >= y && mouseY < y + 14) {
+                int listH = this.height - 118;
+                int rowHeight = 20;
+                for (int i = queueScrollOffset; i < tracks.size() && (i - queueScrollOffset) * rowHeight < listH; i++) {
+                    int y = listY + (i - queueScrollOffset) * rowHeight;
+                    if (mouseY >= y && mouseY < y + 18) {
                         if (mouseX >= this.width - 76 && mouseX < this.width - 62) {
                             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.JUMP_TRACK, "", "", false, i));
                             return true;
@@ -860,7 +935,7 @@ public class JamScreen extends Screen {
             if (currentTab == Tab.MEMBERS && ClientJamManager.canManage()) {
                 List<SyncedJam.MemberInfo> members = ClientJamManager.getMembers();
                 int listY = 30;
-                int listH = this.height - 110;
+                int listH = this.height - 118;
                 for (int i = membersScrollOffset; i < members.size() && (i - membersScrollOffset) * 16 < listH; i++) {
                     SyncedJam.MemberInfo m = members.get(i);
                     int y = listY + (i - membersScrollOffset) * 16;
@@ -877,7 +952,6 @@ public class JamScreen extends Screen {
                 }
             }
         } else {
-            // Directory View Actions (Join Click)
             List<S2CSyncJamListPacket.JamSummary> dir = ClientJamManager.getDirectory();
             int listY = 28;
             int listH = this.height - 62;
