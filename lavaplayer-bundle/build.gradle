@@ -1,57 +1,67 @@
 plugins {
-    id 'java-library'
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 group = 'com.skl'
 version = '2.2.2'
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.lavalink.dev/releases' }
+    maven { url = 'https://jitpack.io' }
 }
 
+// Private configuration: bundled into the shadowJar, but never leaked to consumers
 configurations {
-    bundle {
-        transitive = true
-        exclude group: 'org.apache.httpcomponents', module: 'httpclient'
-        exclude group: 'org.slf4j'
-        exclude group: 'com.google.code.gson'
+    shadowBundle {
+        canBeConsumed = false
+        canBeResolved = true
     }
-    // Force Gradle to provide the JAR artifact instead of an empty classes directory
-    apiElements {
-        outgoing.variants.removeIf { it.name == 'classes' }
-    }
-    runtimeElements {
-        outgoing.variants.removeIf { it.name == 'classes' }
-    }
+    compileClasspath.extendsFrom shadowBundle
+    runtimeClasspath.extendsFrom shadowBundle
 }
 
 dependencies {
-    bundle 'dev.arbjerg:lavaplayer:2.2.2'
-    bundle 'dev.arbjerg:lavaplayer-natives:2.2.2'
-    bundle 'dev.arbjerg:lava-common:2.2.2'
-    bundle 'dev.lavalink.youtube:common:1.18.2'
-}
-
-jar {
-    archiveBaseName = 'lavaplayer-bundle'
-    archiveVersion = project.version
-
-    from {
-        configurations.bundle.collect { zipTree(it) }
+    shadowBundle('dev.arbjerg:lavaplayer:2.2.2') {
+        exclude group: 'org.jetbrains', module: 'annotations'
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
+    shadowBundle('dev.lavalink.youtube:common:1.18.2') {
+        exclude group: 'org.jetbrains', module: 'annotations'
+        exclude group: 'org.slf4j', module: 'slf4j-api'
     }
 
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
-    exclude 'module-info.class', 'META-INF/versions/**/module-info.class'
+    compileOnly 'org.jetbrains:annotations:24.0.1'
+    compileOnly 'org.slf4j:slf4j-api:2.0.7'
+}
 
-    manifest {
-        attributes([
-                'Implementation-Title'  : 'lavaplayer-bundle',
-                'Implementation-Version': project.version,
-                'FMLModType'            : 'GAMELIBRARY',
-                'Automatic-Module-Name' : 'jammod.lavaplayer'
-        ])
+tasks.named('jar') {
+    enabled = false
+}
+
+shadowJar {
+    archiveClassifier.set('')
+    configurations = [project.configurations.shadowBundle]
+
+    exclude 'org/intellij/**'
+    exclude 'org/jetbrains/**'
+    exclude 'org/slf4j/**'
+
+    exclude 'module-info.class'
+    exclude 'META-INF/versions/**'
+    exclude 'META-INF/maven/**'
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+}
+
+// Publish only the shaded jar
+configurations {
+    [apiElements, runtimeElements].each { conf ->
+        conf.outgoing.artifacts.clear()
+        conf.outgoing.artifact(tasks.shadowJar)
     }
 }

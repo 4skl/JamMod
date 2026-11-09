@@ -311,6 +311,15 @@ public class SyncedJam {
         else if (from > currentTrackIndex && to <= currentTrackIndex) currentTrackIndex++;
     }
 
+    public synchronized void updateTrack(int index, String title, long durationMs) {
+        ensureRuntimeState();
+        if (index >= 0 && index < this.tracks.size()) {
+            JamTrack old = this.tracks.get(index);
+            // URL first, Title second:
+            this.tracks.set(index, new JamTrack(old.getUrl(), title, durationMs));
+        }
+    }
+
     public synchronized void seek(long offsetMs) {
         ensureRuntimeState();
         if (tracks.isEmpty() || !playing) return;
@@ -324,7 +333,8 @@ public class SyncedJam {
             return;
         }
         this.currentTrackIndex = Math.max(0, Math.min(index, tracks.size() - 1));
-        this.startTimestamp = System.currentTimeMillis();
+        // Give clients 3 seconds to buffer the stream before 0:00:
+        this.startTimestamp = System.currentTimeMillis() + 3000L;
         this.pausedElapsedMs = 0;
         this.playing = true;
     }
@@ -345,7 +355,8 @@ public class SyncedJam {
     public synchronized void resume() {
         ensureRuntimeState();
         if (!this.playing && !tracks.isEmpty()) {
-            this.startTimestamp = System.currentTimeMillis() - this.pausedElapsedMs;
+            // Give a 1-second buffer when unpausing
+            this.startTimestamp = System.currentTimeMillis() + 1000L - this.pausedElapsedMs;
             this.playing = true;
         }
     }

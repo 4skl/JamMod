@@ -1,0 +1,12 @@
+plugins {
+    id 'dev.kikugie.stonecutter'
+}
+
+stonecutter.active "1.20.1-forge" /* [SC] DO NOT EDIT */
+
+tasks.register("buildAll") {
+    group = "project"
+    dependsOn subprojects.findAll { it.path.matches('^:[0-9].*') }.collect { p ->
+        p.tasks.matching { t -> t.name == "build" }
+    }
+}

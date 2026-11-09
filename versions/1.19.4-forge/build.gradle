@@ -1,0 +1,78 @@
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+// 1. Include common sources directly so ForgeGradle reobfuscates Minecraft references to SRG
+sourceSets {
+    main {
+        java {
+            srcDir project(':common').file('src/main/java')
+        }
+    }
+}
+
+// 2. Enable Forge's Jar-in-Jar system before the minecraft block
+jarJar.enable()
+
+minecraft {
+    mappings channel: 'official', version: '1.19.4'
+    copyIdeResources = true
+
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods { jammod { source sourceSets.main } }
+        }
+        client {
+            def user = project.findProperty('username') ?: rootProject.findProperty('username')
+            if (user) {
+                args '--username', user.toString()
+            }
+        }
+        server { args '--nogui' }
+    }
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.19.4-45.3.0'
+
+    compileOnly(project(':lavaplayer-bundle')) { transitive = false }
+    minecraftLibrary(project(':lavaplayer-bundle')) { transitive = false }
+
+    jarJar(project(':lavaplayer-bundle')) {
+        transitive = false
+        jarJar.ranged(it, '[2.2.2,)')
+    }
+}
+
+// 3. Reobfuscate the jarJar artifact from Mojang mappings to SRG for production
+reobf {
+    jarJar { }
+}
+tasks.jarJar.finalizedBy('reobfJarJar')
+
+// 4. Make the jarJar artifact the primary output (JamMod-1.0.0.jar)
+tasks.jarJar.configure {
+    archiveClassifier.set('')
+}
+
+jar {
+    archiveClassifier.set('slim')
+    manifest {
+        attributes([
+                'Specification-Title'     : 'jammod',
+                'Specification-Vendor'    : '4skl',
+                'Specification-Version'   : '1',
+                'Implementation-Title'    : project.name,
+                'Implementation-Version'  : project.version,
+                'Implementation-Vendor'   : '4skl',
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}

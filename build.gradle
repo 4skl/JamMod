@@ -1,39 +1,72 @@
-plugins {
-    id 'base'
-}
-
 subprojects {
     apply plugin: 'java'
 
-    group = 'com.skl'
-    version = '1.0.0'
+    if (project.path.matches('^:[0-9].*')) {
+        sourceSets.main {
+            java {
+                srcDir rootProject.file('src/main/java')
+                srcDir project(':common').file('src/main/java')
+            }
+            resources {
+                srcDir rootProject.file('src/main/resources')
+                srcDir project(':common').file('src/main/resources')
+            }
+        }
 
-    repositories {
-        mavenCentral()
-        maven {
-            name = 'NeoForged'
-            url = 'https://maven.neoforged.net/releases'
+        tasks.withType(JavaCompile).configureEach {
+            dependsOn ':lavaplayer-bundle:shadowJar'
         }
-        maven {
-            name = 'Minecraft'
-            url = 'https://libraries.minecraft.net/'
+
+        afterEvaluate {
+            // Automatically switch Stonecutter active target before building or processing resources
+            tasks.matching { it.name in ['compileJava', 'processResources'] }.configureEach {
+                dependsOn rootProject.tasks.matching { it.name == "Set active project to ${project.name}" }
+            }
+
+            // Force run tasks to process resources first
+            tasks.matching { it.name.startsWith('run') }.configureEach {
+                dependsOn tasks.named('processResources')
+            }
         }
-        maven { url = 'https://maven.lavalink.dev/releases' }
-        maven { url = 'https://jitpack.io' }
     }
 
-    // Automatically expand properties in all mods.toml and neoforge.mods.toml files
+    group = 'com.skl'
+    version = rootProject.mod_version
+
+    tasks.named('jar', Jar) {
+        manifest {
+            attributes([
+                    'Specification-Title'     : rootProject.mod_id,
+                    'Specification-Vendor'    : rootProject.mod_authors,
+                    'Specification-Version'   : '1',
+                    'Implementation-Title'    : rootProject.mod_name,
+                    'Implementation-Version'  : project.version,
+                    'Implementation-Vendor'   : rootProject.mod_authors,
+                    'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+            ])
+        }
+    }
+
     tasks.named('processResources', ProcessResources) {
+        def packFormat = 15
+        if (project.name.startsWith("1.18.2")) packFormat = 9
+        else if (project.name.startsWith("1.19.2")) packFormat = 10
+        else if (project.name.startsWith("1.19.4")) packFormat = 12
+        else if (project.name.startsWith("1.20.4")) packFormat = 26
+        else if (project.name.startsWith("1.21.1")) packFormat = 48
+
         var replaceProperties = [
-                'mod_id'         : findProperty('mod_id') ?: 'jammod',
-                'mod_name'       : findProperty('mod_name') ?: 'JamMod',
-                'mod_version'    : findProperty('mod_version') ?: project.version,
-                'mod_license'    : findProperty('mod_license') ?: 'MIT',
-                'mod_description': findProperty('mod_description') ?: 'Synchronized music and audio player in Minecraft!'
+                'mod_id'         : rootProject.mod_id,
+                'mod_name'       : rootProject.mod_name,
+                'mod_version'    : rootProject.mod_version,
+                'mod_license'    : rootProject.mod_license,
+                'mod_authors'    : rootProject.mod_authors,
+                'mod_description': rootProject.mod_description,
+                'pack_format'    : packFormat
         ]
         inputs.properties replaceProperties
 
-        filesMatching(['META-INF/mods.toml', 'META-INF/neoforge.mods.toml']) {
+        filesMatching(['META-INF/mods.toml', 'META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
             expand replaceProperties
         }
     }

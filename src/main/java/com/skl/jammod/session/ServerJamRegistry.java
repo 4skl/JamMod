@@ -9,7 +9,11 @@ import com.skl.jammod.network.S2CSyncJamListPacket;
 import com.skl.jammod.network.S2CSyncJamPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+//? if >1.20.1 {
+/*import net.neoforged.fml.loading.FMLPaths;
+*///?} else {
 import net.minecraftforge.fml.loading.FMLPaths;
+ //?}
 
 import java.io.Reader;
 import java.io.Writer;
@@ -139,20 +143,21 @@ public class ServerJamRegistry {
         JamTrack cur = jam.getCurrentTrack();
         String curUrl = cur != null ? cur.getUrl() : "";
         String curTitle = cur != null ? cur.getTitle() : "";
+        long curDuration = cur != null ? cur.getDurationMs() : 0L;
 
         for (UUID memberId : jam.getListeners()) {
             ServerPlayer member = server.getPlayerList().getPlayer(memberId);
             if (member != null) {
                 boolean canEdit = jam.canEdit(memberId);
                 boolean isOwner = jam.isOwner(memberId);
-                boolean isAdmin = jam.isAdmin(memberId);
+                boolean canManage = jam.canManage(memberId);
                 S2CSyncJamPacket packet = new S2CSyncJamPacket(
                         jam.getId(), jam.getName(), jam.getOwnerName(), jam.isPrivate(),
                         jam.getEditPolicy(), jam.getRepeatMode(), jam.isShuffle(),
-                        curUrl, curTitle, jam.getCurrentTrackIndex(),
+                        curTitle, curUrl, curDuration,
                         jam.getStartTimestamp(), jam.isPlaying(), jam.getTracks(),
                         jam.getMemberList(),
-                        jam.getListeners().size(), canEdit, isOwner, isAdmin
+                        jam.getCurrentTrackIndex(), isOwner, canEdit, canManage
                 );
                 ModNetworking.sendToPlayer(member, packet);
             }
