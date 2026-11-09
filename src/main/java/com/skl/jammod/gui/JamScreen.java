@@ -128,6 +128,9 @@ public class JamScreen extends Screen {
     private int membersScrollOffset = 0;
     private int directoryScrollOffset = 0;
 
+    private static long lastKnownPos = 0L;
+    private static int lastTrackIndex = -1;
+
     public JamScreen() {
         //? if >=1.19 {
         super(Component.literal("JamMod"));
@@ -498,30 +501,44 @@ public class JamScreen extends Screen {
         GuiComponent.fill(poseStack, 0, barY, this.width, barY + 1, 0xFFFFAA00);
         *///?}
 
-        int idx = ClientJamManager.getCurrentTrackIndex();
-        List<JamTrack> trackList = ClientJamManager.getTracks();
-
-        String rawTitle = ClientJamManager.getCurrentTrackTitle();
-        String rawUrl = ClientJamManager.getCurrentTrackUrl();
-
-        if (idx >= 0 && idx < trackList.size()) {
-            JamTrack cur = trackList.get(idx);
-            if (rawTitle == null || rawTitle.isBlank()) rawTitle = cur.getTitle();
-            if (rawUrl == null || rawUrl.isBlank()) rawUrl = cur.getUrl();
+        // Reset cached timeline position if track changed
+        int currentTrackIdx = ClientJamManager.getCurrentTrackIndex();
+        if (currentTrackIdx != lastTrackIndex) {
+            lastTrackIndex = currentTrackIdx;
+            lastKnownPos = 0L;
         }
 
-        String[] resolved = resolveDisplayNames(rawTitle, rawUrl);
-        String songName = resolved[0].isBlank() ? "No track playing" : resolved[0];
-        String songUrl = resolved[1];
-
         long dur = getCurrentDuration();
-        long pos = ClientJamManager.isPlaying() ? (System.currentTimeMillis() - ClientJamManager.getStartTimestamp()) : 0L;
+        long pos = 0L;
+
+        if (ClientJamManager.isPlaying()) {
+            pos = System.currentTimeMillis() - ClientJamManager.getStartTimestamp();
+            if (pos > 0) {
+                lastKnownPos = pos;
+            }
+        } else {
+            // When paused, query Lavaplayer's frozen playback position
+            pos = ClientAudioEngine.getPosition();
+            // Fallback to last known position if audio engine is buffering/flushed
+            if (pos <= 0 && lastKnownPos > 0) {
+                pos = lastKnownPos;
+            }
+        }
+
         if (dur > 0 && pos > dur) pos = dur;
         if (pos < 0) pos = 0;
 
         String timeStr = formatTime(pos) + " / " + formatTime(dur);
 
         int maxTitleW = this.width - this.font.width(timeStr) - 30;
+
+        String rawTitle = ClientJamManager.getCurrentTrackTitle();
+        String rawUrl = ClientJamManager.getCurrentTrackUrl();
+
+        String[] resolved = resolveDisplayNames(rawTitle, rawUrl);
+        String songName = resolved[0].isBlank() ? "No track playing" : resolved[0];
+        String songUrl = resolved[1];
+
         String displayTitle = songName;
         if (this.font.width(displayTitle) > maxTitleW) {
             while (displayTitle.length() > 4 && this.font.width(displayTitle + "...") > maxTitleW) {
@@ -885,7 +902,7 @@ public class JamScreen extends Screen {
                 }
             }
 
-            // Seekbar
+            // Seekbar Click
             int progressX = 10;
             int progressW = this.width - 20;
             int progressY = barY + 25;
@@ -896,6 +913,7 @@ public class JamScreen extends Screen {
                     if (dur > 0) {
                         float pct = (float) (mouseX - progressX) / progressW;
                         long target = (long) (dur * pct);
+                        lastKnownPos = target;
                         ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SEEK, String.valueOf(target)));
                         return true;
                     }
