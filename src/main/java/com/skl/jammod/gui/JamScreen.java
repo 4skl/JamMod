@@ -9,6 +9,8 @@ import com.skl.jammod.network.S2CSyncJamListPacket;
 import com.skl.jammod.session.JamEditPolicy;
 import com.skl.jammod.session.JamTrack;
 import com.skl.jammod.session.SyncedJam;
+import com.skl.jammod.client.ClientJamConfig;
+import com.skl.jammod.client.OverlayCorner;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
@@ -109,6 +111,8 @@ public class JamScreen extends Screen {
     private Button privacyBtn;
     private Button policyBtn;
     private Button deleteJamBtn;
+    private Button hudToggleBtn;
+    private Button hudCornerBtn;
 
     // Bottom Player Controls
     private Button prevBtn;
@@ -153,6 +157,24 @@ public class JamScreen extends Screen {
         //?} else {
         /*return new Button(x, y, width, height, message, onPress);
          *///?}
+    }
+
+    private static String formatCorner(OverlayCorner corner) {
+        if (corner == null) return "Top-Right";
+        return switch (corner) {
+            case TOP_LEFT -> "Top-Left";
+            case TOP_RIGHT -> "Top-Right";
+            case BOTTOM_LEFT -> "Bottom-Left";
+            case BOTTOM_RIGHT -> "Bottom-Right";
+        };
+    }
+
+    private static String getHudToggleLabel() {
+        return "HUD: " + (ClientJamConfig.isOverlayEnabled() ? "§aEnabled" : "§cDisabled");
+    }
+
+    private static String getHudCornerLabel() {
+        return "Position: §e" + formatCorner(ClientJamConfig.getOverlayCorner());
     }
 
     private class VolumeSlider extends AbstractSliderButton {
@@ -246,22 +268,47 @@ public class JamScreen extends Screen {
         });
         this.addRenderableWidget(inviteBtn);
 
-        // Tab 3: Settings Buttons
-        privacyBtn = createButton(text("Privacy: " + (ClientJamManager.isPrivate() ? "Private" : "Public")), centerX - 100, 48, 200, 20, b -> {
+        // Tab 3: Settings Buttons (Two-Column Layout)
+        int col1X = centerX - 155;
+        int col2X = centerX + 5;
+
+        // Column 1: Room Settings
+        privacyBtn = createButton(text("Privacy: " + (ClientJamManager.isPrivate() ? "Private" : "Public")), col1X, 50, 150, 20, b -> {
             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.TOGGLE_PRIVACY));
         });
         this.addRenderableWidget(privacyBtn);
 
-        policyBtn = createButton(text("Edit Policy: " + ClientJamManager.getEditPolicy().name()), centerX - 100, 74, 200, 20, b -> {
+        policyBtn = createButton(text("Edit Policy: " + ClientJamManager.getEditPolicy().name()), col1X, 74, 150, 20, b -> {
             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.SET_POLICY));
         });
         this.addRenderableWidget(policyBtn);
 
-        deleteJamBtn = createButton(text("Delete Jam Room"), centerX - 100, 106, 200, 20, b -> {
+        deleteJamBtn = createButton(text("Delete Jam Room"), col1X, 98, 150, 20, b -> {
             ModNetworking.sendToServer(new C2SJamActionPacket(C2SJamActionPacket.Action.DELETE_JAM, ClientJamManager.getJamId()));
             this.onClose();
         });
         this.addRenderableWidget(deleteJamBtn);
+
+        // Column 2: Client HUD Settings
+        hudToggleBtn = createButton(text(getHudToggleLabel()), col2X, 50, 150, 20, b -> {
+            ClientJamConfig.setOverlayEnabled(!ClientJamConfig.isOverlayEnabled());
+            hudToggleBtn.setMessage(text(getHudToggleLabel()));
+        });
+        this.addRenderableWidget(hudToggleBtn);
+
+        hudCornerBtn = createButton(text(getHudCornerLabel()), col2X, 74, 150, 20, b -> {
+            OverlayCorner current = ClientJamConfig.getOverlayCorner();
+            OverlayCorner next = switch (current) {
+                case TOP_LEFT -> OverlayCorner.TOP_RIGHT;
+                case TOP_RIGHT -> OverlayCorner.BOTTOM_RIGHT;
+                case BOTTOM_RIGHT -> OverlayCorner.BOTTOM_LEFT;
+                case BOTTOM_LEFT -> OverlayCorner.TOP_LEFT;
+                default -> OverlayCorner.TOP_RIGHT;
+            };
+            ClientJamConfig.setOverlayCorner(next);
+            hudCornerBtn.setMessage(text(getHudCornerLabel()));
+        });
+        this.addRenderableWidget(hudCornerBtn);
 
         // Player Controls
         int playerBarY = this.height - 22;
@@ -358,6 +405,12 @@ public class JamScreen extends Screen {
         policyBtn.visible = showSettings && canManage;
         policyBtn.setMessage(text("Edit Policy: " + ClientJamManager.getEditPolicy().name()));
         deleteJamBtn.visible = showSettings && isOwner;
+
+        // HUD preferences are always accessible to any player in the room
+        hudToggleBtn.visible = showSettings;
+        hudToggleBtn.setMessage(text(getHudToggleLabel()));
+        hudCornerBtn.visible = showSettings;
+        hudCornerBtn.setMessage(text(getHudCornerLabel()));
 
         prevBtn.visible = inJam && canEdit;
         togglePlayBtn.visible = inJam && canEdit;
@@ -754,12 +807,22 @@ public class JamScreen extends Screen {
         /*private void renderSettingsTab(PoseStack poseStack) {
          *///?}
         int centerX = this.width / 2;
+        boolean canManage = ClientJamManager.canManage();
+
         //? if >=1.20 {
-        graphics.drawCenteredString(this.font, "§6§lRoom Settings & Access Control", centerX, 32, 0xFFFFFF);
-        graphics.drawCenteredString(this.font, "§7Configure who can modify the queue or join this session.", centerX, 134, 0x888888);
+        if (canManage) {
+            graphics.drawCenteredString(this.font, "§6§lRoom Settings", centerX - 80, 36, 0xFFFFFF);
+        } else {
+            graphics.drawCenteredString(this.font, "§7(Room managed by host)", centerX - 80, 60, 0x888888);
+        }
+        graphics.drawCenteredString(this.font, "§e§lHUD Overlay", centerX + 80, 36, 0xFFFFFF);
         //?} else {
-        /*drawCenteredString(poseStack, this.font, "§6§lRoom Settings & Access Control", centerX, 32, 0xFFFFFF);
-        drawCenteredString(poseStack, this.font, "§7Configure who can modify the queue or join this session.", centerX, 134, 0x888888);
+        /*if (canManage) {
+            drawCenteredString(poseStack, this.font, "§6§lRoom Settings", centerX - 80, 36, 0xFFFFFF);
+        } else {
+            drawCenteredString(poseStack, this.font, "§7(Room managed by host)", centerX - 80, 60, 0x888888);
+        }
+        drawCenteredString(poseStack, this.font, "§e§lHUD Overlay", centerX + 80, 36, 0xFFFFFF);
         *///?}
     }
 
