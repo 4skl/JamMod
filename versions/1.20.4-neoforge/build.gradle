@@ -18,7 +18,13 @@ sourceSets {
 neoForge {
     version = '20.4.253'
     runs {
-        client { client() }
+        client {
+            client()
+            def user = project.findProperty('username') ?: rootProject.findProperty('username')
+            if (user) {
+                programArguments.addAll(['--username', user.toString()])
+            }
+        }
         server { server() }
     }
     mods {

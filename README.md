@@ -129,6 +129,9 @@ Thanks to automatic project switching, you do not need to set the active Stonecu
 
 # Run the test client for a specific version:
 ./gradlew :1.20.1-forge:runClient
+
+# Run another instance of the test client to test on LAN
+./gradlew :1.20.1-forge:runClient -Pusername=Tester2
 ```
 
 #### Build All Targets

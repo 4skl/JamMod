@@ -29,7 +29,12 @@ minecraft {
             property 'forge.logging.console.level', 'debug'
             mods { jammod { source sourceSets.main } }
         }
-        client {}
+        client {
+            def user = project.findProperty('username') ?: rootProject.findProperty('username')
+            if (user) {
+                args '--username', user.toString()
+            }
+        }
         server { args '--nogui' }
     }
 }

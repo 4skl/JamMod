@@ -24,6 +24,10 @@ neoForge {
     runs {
         client {
             client()
+            def user = project.findProperty('username') ?: rootProject.findProperty('username')
+            if (user) {
+                programArguments.addAll(['--username', user.toString()])
+            }
         }
         server {
             server()
