@@ -20,8 +20,8 @@ import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 //? if <=1.18.2 {
-/*import net.minecraft.network.chat.TextComponent;
- *///?}
+import net.minecraft.network.chat.TextComponent;
+ //?}
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
@@ -52,10 +52,10 @@ public class JamCommands {
     // Universal Text Component helper
     private static MutableComponent text(String msg) {
         //? if >=1.19 {
-        return Component.literal(msg);
-        //?} else {
-        /*return new TextComponent(msg);
-         *///?}
+        /*return Component.literal(msg);
+        *///?} else {
+        return new TextComponent(msg);
+         //?}
     }
 
     // Safe player retriever (works on all MC versions 1.18.2 - 1.21.1)
@@ -66,10 +66,10 @@ public class JamCommands {
     // Universal sendSuccess helper (handles Supplier in 1.20+ vs Component in 1.18-1.19)
     private static void sendSuccess(CommandSourceStack source, Component comp, boolean broadcast) {
         //? if >=1.20 {
-        source.sendSuccess(() -> comp, broadcast);
-        //?} else {
-        /*source.sendSuccess(comp, broadcast);
-         *///?}
+        /*source.sendSuccess(() -> comp, broadcast);
+        *///?} else {
+        source.sendSuccess(comp, broadcast);
+         //?}
     }
 
     private static void sendSuccess(CommandSourceStack source, String msg, boolean broadcast) {
@@ -84,10 +84,10 @@ public class JamCommands {
     // Universal player message helper (sendSystemMessage vs sendMessage)
     private static void sendMsg(ServerPlayer player, Component comp) {
         //? if >=1.19 {
-        player.sendSystemMessage(comp);
-        //?} else {
-        /*player.sendMessage(comp, net.minecraft.Util.NIL_UUID);
-         *///?}
+        /*player.sendSystemMessage(comp);
+        *///?} else {
+        player.sendMessage(comp, net.minecraft.Util.NIL_UUID);
+         //?}
     }
 
     public static MutableComponent clickable(String display, String command, String hoverText) {

@@ -26,11 +26,11 @@ import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
  //?}
 
 //? if <=1.18.2 {
-/*import net.minecraftforge.client.ClientRegistry;
+import net.minecraftforge.client.ClientRegistry;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
-*///?} else if <=1.20.1 {
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
- //?}
+//?} else if <=1.20.1 {
+/*import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+ *///?}
 
 @EventBusSubscriber(modid = JamMod.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 public class KeyInputHandler {
@@ -43,14 +43,14 @@ public class KeyInputHandler {
     );
 
     //? if <=1.18.2 {
-    /*@SubscribeEvent
+    @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> ClientRegistry.registerKeyBinding(OPEN_JAM_MENU));
     }
-    *///?} else {
-    @SubscribeEvent
+    //?} else {
+    /*@SubscribeEvent
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(OPEN_JAM_MENU);
     }
-    //?}
+    *///?}
 }

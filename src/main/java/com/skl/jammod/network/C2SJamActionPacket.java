@@ -14,8 +14,8 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 //? if <=1.18.2 {
-/*import net.minecraft.network.chat.TextComponent;
- *///?}
+import net.minecraft.network.chat.TextComponent;
+ //?}
 
 //? if >=1.21 {
 /*import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -117,18 +117,18 @@ public class C2SJamActionPacket
 
     private static MutableComponent text(String msg) {
         //? if >=1.19 {
-        return Component.literal(msg);
-        //?} else {
-        /*return new TextComponent(msg);
-         *///?}
+        /*return Component.literal(msg);
+        *///?} else {
+        return new TextComponent(msg);
+         //?}
     }
 
     private static void sendMsg(ServerPlayer player, Component comp) {
         //? if >=1.19 {
-        player.sendSystemMessage(comp);
-        //?} else {
-        /*player.sendMessage(comp, net.minecraft.Util.NIL_UUID);
-         *///?}
+        /*player.sendSystemMessage(comp);
+        *///?} else {
+        player.sendMessage(comp, net.minecraft.Util.NIL_UUID);
+         //?}
     }
 
     private static void processAction(C2SJamActionPacket msg, ServerPlayer player) {

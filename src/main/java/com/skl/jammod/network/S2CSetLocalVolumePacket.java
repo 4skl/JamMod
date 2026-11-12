@@ -67,10 +67,10 @@ public class S2CSetLocalVolumePacket
         Minecraft mc = Minecraft.getInstance();
         double target = Math.max(0.0, Math.min(1.0, volume / 100.0));
         //? if >1.19.2 {
-        mc.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(target);
-        //?} else {
-        /*mc.options.setSoundCategoryVolume(SoundSource.MUSIC, (float) target);
-         *///?}
+        /*mc.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(target);
+        *///?} else {
+        mc.options.setSoundCategoryVolume(SoundSource.MUSIC, (float) target);
+         //?}
         mc.options.save();
         ClientAudioEngine.updateVolume();
     }

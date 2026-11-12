@@ -58,16 +58,16 @@ public class ClientAudioBridge {
     //?}
 
     //? if <=1.18.2 {
-    /*@SubscribeEvent
+    @SubscribeEvent
     public static void onClientDisconnect(ClientPlayerNetworkEvent.LoggedOutEvent event) {
         ClientJamManager.reset();
     }
-    *///?} else {
-    @SubscribeEvent
+    //?} else {
+    /*@SubscribeEvent
     public static void onClientDisconnect(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientJamManager.reset();
     }
-    //?}
+    *///?}
 
     public static void playTrack(String trackUrl, long startTimestamp) {
         long offsetMs = Math.max(0, System.currentTimeMillis() - startTimestamp);

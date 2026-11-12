@@ -6,24 +6,18 @@ plugins {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
-// 1. Enable Forge's Jar-in-Jar system before the minecraft block
 jarJar.enable()
 
 minecraft {
     mappings channel: 'official', version: '1.20.1'
-    // Disabled so Gradle's processResources expansion is respected
-    copyIdeResources = false
+    copyIdeResources = true
 
     runs {
         configureEach {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-            mods {
-                "${rootProject.findProperty('mod_id') ?: 'jammod'}" {
-                    source sourceSets.main
-                }
-            }
+            mods { jammod { source sourceSets.main } }
         }
         client {
             def user = project.findProperty('username') ?: rootProject.findProperty('username')
@@ -47,13 +41,11 @@ dependencies {
     }
 }
 
-// 2. Reobfuscate the jarJar artifact from Mojang mappings to SRG for production
 reobf {
     jarJar { }
 }
 tasks.jarJar.finalizedBy('reobfJarJar')
 
-// 3. Centralized Output Naming: pulls 'mod_name' from gradle.properties
 def modBaseName = rootProject.findProperty('mod_name') ?: rootProject.findProperty('mod_id') ?: 'JamMod'
 
 tasks.jarJar.configure {

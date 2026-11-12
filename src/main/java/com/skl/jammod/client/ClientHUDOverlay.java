@@ -5,27 +5,27 @@ import com.skl.jammod.JamMod;
 import net.minecraft.client.Minecraft;
 
 //? if >=1.20 {
-import net.minecraft.client.gui.GuiGraphics;
-//?} else {
-/*import com.mojang.blaze3d.vertex.PoseStack;
+/*import net.minecraft.client.gui.GuiGraphics;
+*///?} else {
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.GuiComponent;
-*///?}
+//?}
 
 //? if >1.20.1 {
 /*import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
 *///?} else if >=1.19 {
-import net.minecraftforge.api.distmarker.Dist;
+/*import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-//?} else {
-/*import net.minecraftforge.api.distmarker.Dist;
+*///?} else {
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-*///?}
+//?}
 
 //? if >=1.21 {
 /*import net.neoforged.fml.common.EventBusSubscriber;
@@ -58,13 +58,13 @@ public class ClientHUDOverlay {
     }
 
     //? if <=1.18.2 {
-    /*@SubscribeEvent
+    @SubscribeEvent
     public static void onRenderOverlay(RenderGameOverlayEvent.Post event) {
         if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
-    *///?} else {
-    @SubscribeEvent
+    //?} else {
+    /*@SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Post event) {
-        //?}
+        *///?}
         Minecraft mc = Minecraft.getInstance();
         if (mc.options.hideGui) return;
         if (!ClientJamConfig.isOverlayEnabled()) return;
@@ -78,12 +78,12 @@ public class ClientHUDOverlay {
         if (elapsed > POPUP_DURATION || popupTitle.isEmpty()) return;
 
         //? if >=1.20 {
-        GuiGraphics graphics = event.getGuiGraphics();
-        //?} else if >=1.19 {
+        /*GuiGraphics graphics = event.getGuiGraphics();
+        *///?} else if >=1.19 {
         /*PoseStack poseStack = event.getPoseStack();
          *///?} else {
-        /*PoseStack poseStack = event.getMatrixStack();
-         *///?}
+        PoseStack poseStack = event.getMatrixStack();
+         //?}
 
         int screenWidth = mc.getWindow().getGuiScaledWidth();
         int screenHeight = mc.getWindow().getGuiScaledHeight();
@@ -142,7 +142,7 @@ public class ClientHUDOverlay {
         String truncUrl = popupUrl.length() > 34 ? popupUrl.substring(0, 31) + "..." : popupUrl;
 
         //? if >=1.20 {
-        // Outer glow & card background
+        /*// Outer glow & card background
         graphics.fill(x, y, x + width, y + height, bgCol);
         graphics.fill(x, y, x + width, y + 1, borderCol);
         graphics.fill(x, y + height - 1, x + width, y + height, borderCol);
@@ -157,8 +157,8 @@ public class ClientHUDOverlay {
         if (hasSubUrl) {
             graphics.drawString(mc.font, "§7🔗 " + truncUrl, x + 8, y + 25, subCol);
         }
-        //?} else {
-        /*GuiComponent.fill(poseStack, x, y, x + width, y + height, bgCol);
+        *///?} else {
+        GuiComponent.fill(poseStack, x, y, x + width, y + height, bgCol);
         GuiComponent.fill(poseStack, x, y, x + width, y + 1, borderCol);
         GuiComponent.fill(poseStack, x, y + height - 1, x + width, y + height, borderCol);
         GuiComponent.fill(poseStack, x + width - 1, y, x + width, y + height, borderCol);
@@ -169,7 +169,7 @@ public class ClientHUDOverlay {
         if (hasSubUrl) {
             mc.font.draw(poseStack, "§7🔗 " + truncUrl, x + 8, y + 25, subCol);
         }
-        *///?}
+        //?}
 
         RenderSystem.disableBlend();
     }
