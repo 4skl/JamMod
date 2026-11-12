@@ -5,69 +5,96 @@ subprojects {
         sourceSets.main {
             java {
                 srcDir rootProject.file('src/main/java')
-                srcDir project(':common').file('src/main/java')
             }
             resources {
                 srcDir rootProject.file('src/main/resources')
-                srcDir project(':common').file('src/main/resources')
             }
         }
 
         tasks.withType(JavaCompile).configureEach {
             dependsOn ':lavaplayer-bundle:shadowJar'
         }
-
-        afterEvaluate {
-            // Automatically switch Stonecutter active target before building or processing resources
-            tasks.matching { it.name in ['compileJava', 'processResources'] }.configureEach {
-                dependsOn rootProject.tasks.matching { it.name == "Set active project to ${project.name}" }
-            }
-
-            // Force run tasks to process resources first
-            tasks.matching { it.name.startsWith('run') }.configureEach {
-                dependsOn tasks.named('processResources')
-            }
-        }
     }
 
     group = 'com.skl'
-    version = rootProject.mod_version
+    version = rootProject.findProperty('mod_version') ?: '1.0.0'
 
+    afterEvaluate {
+        // Automatically switch Stonecutter active target before building
+        tasks.matching { it.name in ['compileJava', 'processResources'] }.configureEach {
+            dependsOn rootProject.tasks.matching { it.name == "Set active project to ${project.name}" }
+        }
+
+        tasks.matching { it.name.startsWith('run') }.configureEach {
+            dependsOn tasks.named('processResources')
+        }
+
+        // 1. Centralized JAR Naming: Uses lazy provider so ForgeGradle cannot override it
+        tasks.withType(AbstractArchiveTask).configureEach {
+            archiveBaseName.set(providers.provider {
+                def name = rootProject.findProperty('mod_name') ?: rootProject.findProperty('mod_id') ?: 'JamMod'
+                return "${name}-${project.name}"
+            })
+        }
+    }
+
+    // 2. Centralized Manifest: Pulls authors, title, and version from gradle.properties
     tasks.named('jar', Jar) {
         manifest {
             attributes([
-                    'Specification-Title'     : rootProject.mod_id,
-                    'Specification-Vendor'    : rootProject.mod_authors,
+                    'Specification-Title'     : rootProject.findProperty('mod_id'),
+                    'Specification-Vendor'    : rootProject.findProperty('mod_authors'),
                     'Specification-Version'   : '1',
-                    'Implementation-Title'    : rootProject.mod_name,
-                    'Implementation-Version'  : project.version,
-                    'Implementation-Vendor'   : rootProject.mod_authors,
+                    'Implementation-Title'    : rootProject.findProperty('mod_name'),
+                    'Implementation-Version'  : rootProject.findProperty('mod_version'),
+                    'Implementation-Vendor'   : rootProject.findProperty('mod_authors'),
                     'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
             ])
         }
     }
 
-    tasks.named('processResources', ProcessResources) {
+    // 3. Centralized Resource Expansion for mods.toml and pack.mcmeta
+    tasks.withType(ProcessResources).configureEach {
         def packFormat = 15
-        if (project.name.startsWith("1.18.2")) packFormat = 9
-        else if (project.name.startsWith("1.19.2")) packFormat = 10
-        else if (project.name.startsWith("1.19.4")) packFormat = 12
-        else if (project.name.startsWith("1.20.4")) packFormat = 26
-        else if (project.name.startsWith("1.21.1")) packFormat = 48
+        if (project.name.contains("1.18.2")) packFormat = 9
+        else if (project.name.contains("1.19.2")) packFormat = 10
+        else if (project.name.contains("1.19.4")) packFormat = 12
+        else if (project.name.contains("1.20.4")) packFormat = 26
+        else if (project.name.contains("1.21.1")) packFormat = 48
+
+        def id = rootProject.findProperty('mod_id') ?: 'jammod'
+        def name = rootProject.findProperty('mod_name') ?: 'JamMod'
+        def ver = rootProject.findProperty('mod_version') ?: '1.0.0'
+        def license = rootProject.findProperty('mod_license') ?: 'MIT'
+        def authors = rootProject.findProperty('mod_authors') ?: '4skl'
+        def description = rootProject.findProperty('mod_description') ?: ''
 
         var replaceProperties = [
-                'mod_id'         : rootProject.mod_id,
-                'mod_name'       : rootProject.mod_name,
-                'mod_version'    : rootProject.mod_version,
-                'mod_license'    : rootProject.mod_license,
-                'mod_authors'    : rootProject.mod_authors,
-                'mod_description': rootProject.mod_description,
-                'pack_format'    : packFormat
+                'mod_id'         : id,
+                'modId'          : id,
+                'mod_name'       : name,
+                'displayName'    : name,
+                'mod_version'    : ver,
+                'version'        : ver,
+                'mod_license'    : license,
+                'license'        : license,
+                'mod_authors'    : authors,
+                'authors'        : authors,
+                'mod_description': description,
+                'description'    : description,
+                'pack_format'    : packFormat,
+                // Nested map prevents Groovy from crashing on ${file.jarVersion}
+                'file'           : ['jarVersion': ver]
         ]
-        inputs.properties replaceProperties
 
-        filesMatching(['META-INF/mods.toml', 'META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
-            expand replaceProperties
+        inputs.properties replaceProperties
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+
+        // Iterate individually over strings so Gradle matches files properly
+        ['META-INF/mods.toml', 'META-INF/neoforge.mods.toml', 'pack.mcmeta'].each { filePath ->
+            filesMatching(filePath) {
+                expand replaceProperties
+            }
         }
     }
 }
