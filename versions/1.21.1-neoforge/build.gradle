@@ -7,20 +7,8 @@ plugins {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
-sourceSets {
-    main {
-        java {
-            srcDir project(':common').file('src/main/java')
-        }
-        resources {
-            srcDir project(':common').file('src/main/resources')
-        }
-    }
-}
-
 neoForge {
-    version = '21.1.93'
-
+    version = '21.1.65'
     runs {
         client {
             client()
@@ -29,21 +17,36 @@ neoForge {
                 programArguments.addAll(['--username', user.toString()])
             }
         }
-        server {
-            server()
-            programArgument '--nogui'
-        }
+        server { server() }
     }
-
     mods {
-        jammod {
-            sourceSet sourceSets.main
-        }
+        jammod { sourceSet sourceSets.main }
     }
 }
 
 dependencies {
     compileOnly(project(':lavaplayer-bundle')) { transitive = false }
     additionalRuntimeClasspath(project(':lavaplayer-bundle')) { transitive = false }
-    jarJar(project(':lavaplayer-bundle')) { transitive = false }
+
+    jarJar(project(':lavaplayer-bundle')) {
+        transitive = false
+    }
+}
+
+def modBaseName = rootProject.findProperty('mod_name') ?: rootProject.findProperty('mod_id') ?: 'JamMod'
+
+jar {
+    archiveBaseName.set("${modBaseName}-${project.name}")
+}
+
+tasks.matching { it.name == 'runClient' }.configureEach {
+    doFirst {
+        def fmlCfg = project.file('run/config/fml.toml')
+        if (fmlCfg.exists()) {
+            fmlCfg.text = fmlCfg.text.replace('earlyWindowControl = true', 'earlyWindowControl = false')
+        } else {
+            fmlCfg.parentFile.mkdirs()
+            fmlCfg.text = 'earlyWindowControl = false\n'
+        }
+    }
 }

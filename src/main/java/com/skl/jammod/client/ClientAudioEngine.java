@@ -18,10 +18,10 @@ import dev.lavalink.youtube.clients.skeleton.Client;
 import net.minecraft.client.Minecraft;
 
 //? if >=1.19 {
-import net.minecraft.network.chat.Component;
-//?} else {
-/*import net.minecraft.network.chat.TextComponent;
- *///?}
+/*import net.minecraft.network.chat.Component;
+*///?} else {
+import net.minecraft.network.chat.TextComponent;
+ //?}
 
 import net.minecraft.sounds.SoundSource;
 import org.apache.http.HttpRequest;
@@ -306,10 +306,10 @@ public class ClientAudioEngine {
         mc.execute(() -> {
             if (mc.player != null) {
                 //? if >=1.19 {
-                mc.player.sendSystemMessage(Component.literal(msg));
-                //?} else {
-                /*mc.player.displayClientMessage(new net.minecraft.network.chat.TextComponent(msg), false);
-                 *///?}
+                /*mc.player.sendSystemMessage(Component.literal(msg));
+                *///?} else {
+                mc.player.displayClientMessage(new net.minecraft.network.chat.TextComponent(msg), false);
+                 //?}
             }
         });
     }

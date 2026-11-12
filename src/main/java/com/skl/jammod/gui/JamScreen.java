@@ -22,20 +22,20 @@ import net.minecraft.sounds.SoundSource;
 import java.util.List;
 
 //? if >=1.20 {
-import net.minecraft.client.gui.GuiGraphics;
-//?} else {
-/*import com.mojang.blaze3d.vertex.PoseStack;
+/*import net.minecraft.client.gui.GuiGraphics;
+*///?} else {
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.GuiComponent;
-*///?}
+//?}
 
 //? if <=1.18.2 {
-/*import net.minecraft.network.chat.TextComponent;
- *///?}
+import net.minecraft.network.chat.TextComponent;
+ //?}
 
 public class JamScreen extends Screen {
     private static final String ICON_NOTE = "♪ ";
     //? if >=1.20.1 {
-    private static final String ICON_MUSIC = "🎵 ";
+    /*private static final String ICON_MUSIC = "🎵 ";
     private static final String ICON_MEMBERS = "👥 ";
     private static final String ICON_SETTINGS = "⚙ ";
     private static final String ICON_CLOSE = "✕";
@@ -58,8 +58,8 @@ public class JamScreen extends Screen {
     private static final String BTN_CLOSE = "✕";
     private static final String BTN_ROLE = "Role ⟳";
     private static final String BULLET = " • ";
-    //?} else {
-    /*private static final String ICON_MUSIC = "";
+    *///?} else {
+    private static final String ICON_MUSIC = "";
     private static final String ICON_MEMBERS = "";
     private static final String ICON_SETTINGS = "";
     private static final String ICON_CLOSE = "X";
@@ -82,7 +82,7 @@ public class JamScreen extends Screen {
     private static final String BTN_CLOSE = "X";
     private static final String BTN_ROLE = "Role >";
     private static final String BULLET = " - ";
-    *///?}
+    //?}
 
     public enum Tab {
         QUEUE, MEMBERS, SETTINGS
@@ -137,26 +137,26 @@ public class JamScreen extends Screen {
 
     public JamScreen() {
         //? if >=1.19 {
-        super(Component.literal("JamMod"));
-        //?} else {
-        /*super(new TextComponent("JamMod"));
-         *///?}
+        /*super(Component.literal("JamMod"));
+        *///?} else {
+        super(new TextComponent("JamMod"));
+         //?}
     }
 
     private static Component text(String s) {
         //? if >=1.19 {
-        return Component.literal(s);
-        //?} else {
-        /*return new TextComponent(s);
-         *///?}
+        /*return Component.literal(s);
+        *///?} else {
+        return new TextComponent(s);
+         //?}
     }
 
     private Button createButton(Component message, int x, int y, int width, int height, Button.OnPress onPress) {
         //? if >=1.19.3 {
-        return Button.builder(message, onPress).bounds(x, y, width, height).build();
-        //?} else {
-        /*return new Button(x, y, width, height, message, onPress);
-         *///?}
+        /*return Button.builder(message, onPress).bounds(x, y, width, height).build();
+        *///?} else {
+        return new Button(x, y, width, height, message, onPress);
+         //?}
     }
 
     private static String formatCorner(OverlayCorner corner) {
@@ -191,10 +191,10 @@ public class JamScreen extends Screen {
         protected void applyValue() {
             Minecraft mc = Minecraft.getInstance();
             //? if >1.19.2 {
-            mc.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(this.value);
-            //?} else {
-            /*mc.options.setSoundCategoryVolume(SoundSource.MUSIC, (float) this.value);
-             *///?}
+            /*mc.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(this.value);
+            *///?} else {
+            mc.options.setSoundCategoryVolume(SoundSource.MUSIC, (float) this.value);
+             //?}
             mc.options.save();
             ClientAudioEngine.updateVolume();
         }
@@ -473,72 +473,72 @@ public class JamScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
     *///?} else if >1.19.4 {
-    @Override
+    /*@Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(graphics);
-        //?} else {
-    /*@Override
+        *///?} else {
+    @Override
     public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(poseStack);
-    *///?}
+    //?}
         updateVisibilities();
 
         boolean inJam = ClientJamManager.isInJam();
         if (inJam) {
             renderSession(
                     //? if >=1.20 {
-                    graphics,
-                    //?} else {
-                    /*poseStack,
-                     *///?}
+                    /*graphics,
+                    *///?} else {
+                    poseStack,
+                     //?}
                     mouseX, mouseY
             );
         } else {
             renderDirectory(
                     //? if >=1.20 {
-                    graphics,
-                    //?} else {
-                    /*poseStack,
-                     *///?}
+                    /*graphics,
+                    *///?} else {
+                    poseStack,
+                     //?}
                     mouseX, mouseY
             );
         }
 
         //? if >=1.20 {
-        super.render(graphics, mouseX, mouseY, partialTick);
-        //?} else {
-        /*super.render(poseStack, mouseX, mouseY, partialTick);
-         *///?}
+        /*super.render(graphics, mouseX, mouseY, partialTick);
+        *///?} else {
+        super.render(poseStack, mouseX, mouseY, partialTick);
+         //?}
     }
 
     //? if >=1.20 {
-    private void renderSession(GuiGraphics graphics, int mouseX, int mouseY) {
-        //?} else {
-        /*private void renderSession(PoseStack poseStack, int mouseX, int mouseY) {
-         *///?}
+    /*private void renderSession(GuiGraphics graphics, int mouseX, int mouseY) {
+        *///?} else {
+        private void renderSession(PoseStack poseStack, int mouseX, int mouseY) {
+         //?}
         switch (currentTab) {
             case QUEUE -> renderQueueTab(
                     //? if >=1.20 {
-                    graphics,
-                    //?} else {
-                    /*poseStack,
-                     *///?}
+                    /*graphics,
+                    *///?} else {
+                    poseStack,
+                     //?}
                     mouseX, mouseY
             );
             case MEMBERS -> renderMembersTab(
                     //? if >=1.20 {
-                    graphics,
-                    //?} else {
-                    /*poseStack,
-                     *///?}
+                    /*graphics,
+                    *///?} else {
+                    poseStack,
+                     //?}
                     mouseX, mouseY
             );
             case SETTINGS -> renderSettingsTab(
                     //? if >=1.20 {
-                    graphics
-                    //?} else {
-                    /*poseStack
-                     *///?}
+                    /*graphics
+                    *///?} else {
+                    poseStack
+                     //?}
             );
         }
 
@@ -547,12 +547,12 @@ public class JamScreen extends Screen {
         int barY = this.height - barH;
 
         //? if >=1.20 {
-        graphics.fill(0, barY, this.width, this.height, 0xFF111114);
+        /*graphics.fill(0, barY, this.width, this.height, 0xFF111114);
         graphics.fill(0, barY, this.width, barY + 1, 0xFFFFAA00);
-        //?} else {
-        /*GuiComponent.fill(poseStack, 0, barY, this.width, this.height, 0xFF111114);
+        *///?} else {
+        GuiComponent.fill(poseStack, 0, barY, this.width, this.height, 0xFF111114);
         GuiComponent.fill(poseStack, 0, barY, this.width, barY + 1, 0xFFFFAA00);
-        *///?}
+        //?}
 
         // Reset cached timeline position if track changed
         int currentTrackIdx = ClientJamManager.getCurrentTrackIndex();
@@ -602,12 +602,12 @@ public class JamScreen extends Screen {
 
         // Line 1: Song Name in white
         //? if >=1.20 {
-        graphics.drawString(this.font, "§6" + ICON_NOTE + "Now Playing: §f" + displayTitle, 10, barY + 4, 0xFFFFFF);
+        /*graphics.drawString(this.font, "§6" + ICON_NOTE + "Now Playing: §f" + displayTitle, 10, barY + 4, 0xFFFFFF);
         graphics.drawString(this.font, "§e" + timeStr, this.width - this.font.width(timeStr) - 10, barY + 4, 0xFFFFFF);
-        //?} else {
-        /*this.font.draw(poseStack, "§6" + ICON_NOTE + "Now Playing: §f" + displayTitle, 10, barY + 4, 0xFFFFFF);
+        *///?} else {
+        this.font.draw(poseStack, "§6" + ICON_NOTE + "Now Playing: §f" + displayTitle, 10, barY + 4, 0xFFFFFF);
         this.font.draw(poseStack, "§e" + timeStr, this.width - this.font.width(timeStr) - 10, barY + 4, 0xFFFFFF);
-        *///?}
+        //?}
 
         // Line 2: URL Grayed Underneath
         if (!songUrl.isBlank()) {
@@ -621,10 +621,10 @@ public class JamScreen extends Screen {
             }
 
             //? if >=1.20 {
-            graphics.drawString(this.font, "§7" + displayUrl + " §8(Click to Copy)", 10, barY + 15, 0x888888);
-            //?} else {
-            /*this.font.draw(poseStack, "§7" + displayUrl + " §8(Click to Copy)", 10, barY + 15, 0x888888);
-             *///?}
+            /*graphics.drawString(this.font, "§7" + displayUrl + " §8(Click to Copy)", 10, barY + 15, 0x888888);
+            *///?} else {
+            this.font.draw(poseStack, "§7" + displayUrl + " §8(Click to Copy)", 10, barY + 15, 0x888888);
+             //?}
         }
 
         // Timeline Progress Bar
@@ -633,27 +633,27 @@ public class JamScreen extends Screen {
         int progressY = barY + 25;
 
         //? if >=1.20 {
-        graphics.fill(progressX, progressY, progressX + progressW, progressY + 4, 0xFF333333);
+        /*graphics.fill(progressX, progressY, progressX + progressW, progressY + 4, 0xFF333333);
         if (dur > 0) {
             int filled = (int) (((double) pos / dur) * progressW);
             graphics.fill(progressX, progressY, progressX + filled, progressY + 4, 0xFFFFAA00);
             graphics.fill(progressX + filled - 1, progressY - 1, progressX + filled + 2, progressY + 5, 0xFFFFFFFF);
         }
-        //?} else {
-        /*GuiComponent.fill(poseStack, progressX, progressY, progressX + progressW, progressY + 4, 0xFF333333);
+        *///?} else {
+        GuiComponent.fill(poseStack, progressX, progressY, progressX + progressW, progressY + 4, 0xFF333333);
         if (dur > 0) {
             int filled = (int) (((double) pos / dur) * progressW);
             GuiComponent.fill(poseStack, progressX, progressY, progressX + filled, progressY + 4, 0xFFFFAA00);
             GuiComponent.fill(poseStack, progressX + filled - 1, progressY - 1, progressX + filled + 2, progressY + 5, 0xFFFFFFFF);
         }
-        *///?}
+        //?}
     }
 
     //? if >=1.20 {
-    private void renderQueueTab(GuiGraphics graphics, int mouseX, int mouseY) {
-        //?} else {
-        /*private void renderQueueTab(PoseStack poseStack, int mouseX, int mouseY) {
-         *///?}
+    /*private void renderQueueTab(GuiGraphics graphics, int mouseX, int mouseY) {
+        *///?} else {
+        private void renderQueueTab(PoseStack poseStack, int mouseX, int mouseY) {
+         //?}
         List<JamTrack> tracks = ClientJamManager.getTracks();
         int listY = 30;
         int listH = this.height - 118;
@@ -661,10 +661,10 @@ public class JamScreen extends Screen {
 
         if (tracks.isEmpty()) {
             //? if >=1.20 {
-            graphics.drawCenteredString(this.font, "§7The queue is empty. Paste a URL below to add audio!", this.width / 2, listY + 30, 0x888888);
-            //?} else {
-            /*drawCenteredString(poseStack, this.font, "§7The queue is empty. Paste a URL below to add audio!", this.width / 2, listY + 30, 0x888888);
-             *///?}
+            /*graphics.drawCenteredString(this.font, "§7The queue is empty. Paste a URL below to add audio!", this.width / 2, listY + 30, 0x888888);
+            *///?} else {
+            drawCenteredString(poseStack, this.font, "§7The queue is empty. Paste a URL below to add audio!", this.width / 2, listY + 30, 0x888888);
+             //?}
             return;
         }
 
@@ -676,10 +676,10 @@ public class JamScreen extends Screen {
 
             if (mouseX >= 8 && mouseX <= this.width - 8 && mouseY >= y && mouseY < y + 18) {
                 //? if >=1.20 {
-                graphics.fill(8, y - 1, this.width - 8, y + 18, 0x22FFFFFF);
-                //?} else {
-                /*GuiComponent.fill(poseStack, 8, y - 1, this.width - 8, y + 18, 0x22FFFFFF);
-                 *///?}
+                /*graphics.fill(8, y - 1, this.width - 8, y + 18, 0x22FFFFFF);
+                *///?} else {
+                GuiComponent.fill(poseStack, 8, y - 1, this.width - 8, y + 18, 0x22FFFFFF);
+                 //?}
             }
 
             String prefix = isCur ? "§a" + BTN_PLAY + " " : "§7";
@@ -694,51 +694,51 @@ public class JamScreen extends Screen {
                 String subUrl = url.length() > 46 ? url.substring(0, 43) + "..." : url;
                 // Line 1: Song Title
                 //? if >=1.20 {
-                graphics.drawString(this.font, prefix + (i + 1) + ". §f" + title + dur, 12, y + 1, 0xFFFFFF);
+                /*graphics.drawString(this.font, prefix + (i + 1) + ". §f" + title + dur, 12, y + 1, 0xFFFFFF);
                 graphics.drawString(this.font, "   §7" + subUrl, 12, y + 10, 0x888888);
-                //?} else {
-                /*this.font.draw(poseStack, prefix + (i + 1) + ". §f" + title + dur, 12, y + 1, 0xFFFFFF);
+                *///?} else {
+                this.font.draw(poseStack, prefix + (i + 1) + ". §f" + title + dur, 12, y + 1, 0xFFFFFF);
                 this.font.draw(poseStack, "   §7" + subUrl, 12, y + 10, 0x888888);
-                *///?}
+                //?}
             } else {
                 //? if >=1.20 {
-                graphics.drawString(this.font, prefix + (i + 1) + ". §f" + title + dur, 12, y + 5, 0xFFFFFF);
-                //?} else {
-                /*this.font.draw(poseStack, prefix + (i + 1) + ". §f" + title + dur, 12, y + 5, 0xFFFFFF);
-                 *///?}
+                /*graphics.drawString(this.font, prefix + (i + 1) + ". §f" + title + dur, 12, y + 5, 0xFFFFFF);
+                *///?} else {
+                this.font.draw(poseStack, prefix + (i + 1) + ". §f" + title + dur, 12, y + 5, 0xFFFFFF);
+                 //?}
             }
 
             if (canEdit) {
                 drawMiniButton(
                         //? if >=1.20 {
-                        graphics,
-                        //?} else {
-                        /*poseStack,
-                         *///?}
+                        /*graphics,
+                        *///?} else {
+                        poseStack,
+                         //?}
                         BTN_PLAY, this.width - 76, y + 3, 14, 13, mouseX, mouseY
                 );
                 drawMiniButton(
                         //? if >=1.20 {
-                        graphics,
-                        //?} else {
-                        /*poseStack,
-                         *///?}
+                        /*graphics,
+                        *///?} else {
+                        poseStack,
+                         //?}
                         BTN_UP, this.width - 58, y + 3, 14, 13, mouseX, mouseY
                 );
                 drawMiniButton(
                         //? if >=1.20 {
-                        graphics,
-                        //?} else {
-                        /*poseStack,
-                         *///?}
+                        /*graphics,
+                        *///?} else {
+                        poseStack,
+                         //?}
                         BTN_DOWN, this.width - 40, y + 3, 14, 13, mouseX, mouseY
                 );
                 drawMiniButton(
                         //? if >=1.20 {
-                        graphics,
-                        //?} else {
-                        /*poseStack,
-                         *///?}
+                        /*graphics,
+                        *///?} else {
+                        poseStack,
+                         //?}
                         BTN_CLOSE, this.width - 22, y + 3, 14, 13, mouseX, mouseY
                 );
             }
@@ -746,10 +746,10 @@ public class JamScreen extends Screen {
     }
 
     //? if >=1.20 {
-    private void renderMembersTab(GuiGraphics graphics, int mouseX, int mouseY) {
-        //?} else {
-        /*private void renderMembersTab(PoseStack poseStack, int mouseX, int mouseY) {
-         *///?}
+    /*private void renderMembersTab(GuiGraphics graphics, int mouseX, int mouseY) {
+        *///?} else {
+        private void renderMembersTab(PoseStack poseStack, int mouseX, int mouseY) {
+         //?}
         List<SyncedJam.MemberInfo> members = ClientJamManager.getMembers();
         int listY = 30;
         int listH = this.height - 118;
@@ -761,10 +761,10 @@ public class JamScreen extends Screen {
 
             if (mouseX >= 8 && mouseX <= this.width - 8 && mouseY >= y && mouseY < y + 14) {
                 //? if >=1.20 {
-                graphics.fill(8, y - 1, this.width - 8, y + 14, 0x22FFFFFF);
-                //?} else {
-                /*GuiComponent.fill(poseStack, 8, y - 1, this.width - 8, y + 14, 0x22FFFFFF);
-                 *///?}
+                /*graphics.fill(8, y - 1, this.width - 8, y + 14, 0x22FFFFFF);
+                *///?} else {
+                GuiComponent.fill(poseStack, 8, y - 1, this.width - 8, y + 14, 0x22FFFFFF);
+                 //?}
             }
 
             String roleColor = switch (m.role()) {
@@ -775,26 +775,26 @@ public class JamScreen extends Screen {
             };
 
             //? if >=1.20 {
-            graphics.drawString(this.font, roleColor + " §f" + m.name(), 12, y + 2, 0xFFFFFF);
-            //?} else {
-            /*this.font.draw(poseStack, roleColor + " §f" + m.name(), 12, y + 2, 0xFFFFFF);
-             *///?}
+            /*graphics.drawString(this.font, roleColor + " §f" + m.name(), 12, y + 2, 0xFFFFFF);
+            *///?} else {
+            this.font.draw(poseStack, roleColor + " §f" + m.name(), 12, y + 2, 0xFFFFFF);
+             //?}
 
             if (canManage && m.role() != SyncedJam.Role.OWNER) {
                 drawMiniButton(
                         //? if >=1.20 {
-                        graphics,
-                        //?} else {
-                        /*poseStack,
-                         *///?}
+                        /*graphics,
+                        *///?} else {
+                        poseStack,
+                         //?}
                         "Role >", this.width - 76, y, 42, 12, mouseX, mouseY
                 );
                 drawMiniButton(
                         //? if >=1.20 {
-                        graphics,
-                        //?} else {
-                        /*poseStack,
-                         *///?}
+                        /*graphics,
+                        *///?} else {
+                        poseStack,
+                         //?}
                         "Kick", this.width - 30, y, 22, 12, mouseX, mouseY
                 );
             }
@@ -802,42 +802,42 @@ public class JamScreen extends Screen {
     }
 
     //? if >=1.20 {
-    private void renderSettingsTab(GuiGraphics graphics) {
-        //?} else {
-        /*private void renderSettingsTab(PoseStack poseStack) {
-         *///?}
+    /*private void renderSettingsTab(GuiGraphics graphics) {
+        *///?} else {
+        private void renderSettingsTab(PoseStack poseStack) {
+         //?}
         int centerX = this.width / 2;
         boolean canManage = ClientJamManager.canManage();
 
         //? if >=1.20 {
-        if (canManage) {
+        /*if (canManage) {
             graphics.drawCenteredString(this.font, "§6§lRoom Settings", centerX - 80, 36, 0xFFFFFF);
         } else {
             graphics.drawCenteredString(this.font, "§7(Room managed by host)", centerX - 80, 60, 0x888888);
         }
         graphics.drawCenteredString(this.font, "§e§lHUD Overlay", centerX + 80, 36, 0xFFFFFF);
-        //?} else {
-        /*if (canManage) {
+        *///?} else {
+        if (canManage) {
             drawCenteredString(poseStack, this.font, "§6§lRoom Settings", centerX - 80, 36, 0xFFFFFF);
         } else {
             drawCenteredString(poseStack, this.font, "§7(Room managed by host)", centerX - 80, 60, 0x888888);
         }
         drawCenteredString(poseStack, this.font, "§e§lHUD Overlay", centerX + 80, 36, 0xFFFFFF);
-        *///?}
+        //?}
     }
 
     //? if >=1.20 {
-    private void renderDirectory(GuiGraphics graphics, int mouseX, int mouseY) {
-        //?} else {
-        /*private void renderDirectory(PoseStack poseStack, int mouseX, int mouseY) {
-         *///?}
+    /*private void renderDirectory(GuiGraphics graphics, int mouseX, int mouseY) {
+        *///?} else {
+        private void renderDirectory(PoseStack poseStack, int mouseX, int mouseY) {
+         //?}
         int centerX = this.width / 2;
 
         //? if >=1.20 {
-        graphics.drawCenteredString(this.font, "§6§lActive Jam Sessions", centerX, 10, 0xFFFFFF);
-        //?} else {
-        /*drawCenteredString(poseStack, this.font, "§6§lActive Jam Sessions", centerX, 10, 0xFFFFFF);
-         *///?}
+        /*graphics.drawCenteredString(this.font, "§6§lActive Jam Sessions", centerX, 10, 0xFFFFFF);
+        *///?} else {
+        drawCenteredString(poseStack, this.font, "§6§lActive Jam Sessions", centerX, 10, 0xFFFFFF);
+         //?}
 
         List<S2CSyncJamListPacket.JamSummary> dir = ClientJamManager.getDirectory();
 
@@ -848,7 +848,7 @@ public class JamScreen extends Screen {
             int cardY = 32;
 
             //? if >=1.20 {
-            graphics.fill(cardX, cardY, cardX + cardW, cardY + cardH, 0xDD121212);
+            /*graphics.fill(cardX, cardY, cardX + cardW, cardY + cardH, 0xDD121212);
             graphics.fill(cardX, cardY, cardX + cardW, cardY + 2, 0xFFFFAA00);
             graphics.drawCenteredString(this.font, "§6§lWelcome to JamMod!", centerX, cardY + 8, 0xFFFFFF);
             graphics.drawCenteredString(this.font, "§7No active jam sessions found on this server.", centerX, cardY + 20, 0xAAAAAA);
@@ -864,8 +864,8 @@ public class JamScreen extends Screen {
 
             graphics.drawString(this.font, "§e4. Manage & Invite:", cardX + 12, cardY + 111, 0xFFFFFF);
             graphics.drawString(this.font, "§7   Promote friends to §bEditor§7 or §cAdmin§7, or invite via §f/jam invite§7.", cardX + 12, cardY + 122, 0xCCCCCC);
-            //?} else {
-            /*GuiComponent.fill(poseStack, cardX, cardY, cardX + cardW, cardY + cardH, 0xDD121212);
+            *///?} else {
+            GuiComponent.fill(poseStack, cardX, cardY, cardX + cardW, cardY + cardH, 0xDD121212);
             GuiComponent.fill(poseStack, cardX, cardY, cardX + cardW, cardY + 2, 0xFFFFAA00);
             drawCenteredString(poseStack, this.font, "§6§lWelcome to JamMod!", centerX, cardY + 8, 0xFFFFFF);
             drawCenteredString(poseStack, this.font, "§7No active jam sessions found on this server.", centerX, cardY + 20, 0xAAAAAA);
@@ -881,7 +881,7 @@ public class JamScreen extends Screen {
 
             this.font.draw(poseStack, "§e4. Manage & Invite:", cardX + 12, cardY + 111, 0xFFFFFF);
             this.font.draw(poseStack, "§7   Promote friends to §bEditor§7 or §cAdmin§7, or invite via §f/jam invite§7.", cardX + 12, cardY + 122, 0xCCCCCC);
-            *///?}
+            //?}
         } else {
             int listY = 28;
             int listH = this.height - 62;
@@ -891,30 +891,30 @@ public class JamScreen extends Screen {
 
                 if (mouseX >= 8 && mouseX <= this.width - 8 && mouseY >= y && mouseY < y + 20) {
                     //? if >=1.20 {
-                    graphics.fill(8, y, this.width - 8, y + 20, 0x22FFFFFF);
-                    //?} else {
-                    /*GuiComponent.fill(poseStack, 8, y, this.width - 8, y + 20, 0x22FFFFFF);
-                     *///?}
+                    /*graphics.fill(8, y, this.width - 8, y + 20, 0x22FFFFFF);
+                    *///?} else {
+                    GuiComponent.fill(poseStack, 8, y, this.width - 8, y + 20, 0x22FFFFFF);
+                     //?}
                 }
 
                 String privacyBadge = sum.isPrivate() ? "§c[Private]" : "§a[Public]";
                 String playing = sum.isPlaying() ? "§6" + ICON_NOTE + sum.currentTrackTitle() : "§8(Idle)";
 
                 //? if >=1.20 {
-                graphics.drawString(this.font, "§f" + sum.name() + " " + privacyBadge + " §7by " + sum.ownerName(), 12, y + 2, 0xFFFFFF);
+                /*graphics.drawString(this.font, "§f" + sum.name() + " " + privacyBadge + " §7by " + sum.ownerName(), 12, y + 2, 0xFFFFFF);
                 graphics.drawString(this.font, "§7" + sum.listeners() + " listeners - " + playing, 12, y + 11, 0x888888);
-                //?} else {
-                /*this.font.draw(poseStack, "§f" + sum.name() + " " + privacyBadge + " §7by " + sum.ownerName(), 12, y + 2, 0xFFFFFF);
+                *///?} else {
+                this.font.draw(poseStack, "§f" + sum.name() + " " + privacyBadge + " §7by " + sum.ownerName(), 12, y + 2, 0xFFFFFF);
                 this.font.draw(poseStack, "§7" + sum.listeners() + " listeners - " + playing, 12, y + 11, 0x888888);
-                *///?}
+                //?}
 
                 if (!sum.isPrivate()) {
                     drawMiniButton(
                             //? if >=1.20 {
-                            graphics,
-                            //?} else {
-                            /*poseStack,
-                             *///?}
+                            /*graphics,
+                            *///?} else {
+                            poseStack,
+                             //?}
                             "Join", this.width - 50, y + 3, 38, 14, mouseX, mouseY
                     );
                 }
@@ -923,29 +923,29 @@ public class JamScreen extends Screen {
     }
 
     //? if >=1.20 {
-    private void drawMiniButton(GuiGraphics graphics, String label, int x, int y, int w, int h, int mouseX, int mouseY) {
-        //?} else {
-        /*private void drawMiniButton(PoseStack poseStack, String label, int x, int y, int w, int h, int mouseX, int mouseY) {
-         *///?}
+    /*private void drawMiniButton(GuiGraphics graphics, String label, int x, int y, int w, int h, int mouseX, int mouseY) {
+        *///?} else {
+        private void drawMiniButton(PoseStack poseStack, String label, int x, int y, int w, int h, int mouseX, int mouseY) {
+         //?}
         boolean hovered = (mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h);
         int bg = hovered ? 0xDD444444 : 0xAA222222;
         int border = hovered ? 0xFFFFAA00 : 0xFF555555;
 
         //? if >=1.20 {
-        graphics.fill(x, y, x + w, y + h, bg);
+        /*graphics.fill(x, y, x + w, y + h, bg);
         graphics.fill(x, y, x + w, y + 1, border);
         graphics.fill(x, y + h - 1, x + w, y + h, border);
         graphics.fill(x, y, x + 1, y + h, border);
         graphics.fill(x + w - 1, y, x + w, y + h, border);
         graphics.drawCenteredString(this.font, label, x + (w / 2), y + (h - 8) / 2, hovered ? 0xFFFFFF : 0xCCCCCC);
-        //?} else {
-        /*GuiComponent.fill(poseStack, x, y, x + w, y + h, bg);
+        *///?} else {
+        GuiComponent.fill(poseStack, x, y, x + w, y + h, bg);
         GuiComponent.fill(poseStack, x, y, x + w, y + 1, border);
         GuiComponent.fill(poseStack, x, y + h - 1, x + w, y + h, border);
         GuiComponent.fill(poseStack, x, y, x + 1, y + h, border);
         GuiComponent.fill(poseStack, x + w - 1, y, x + w, y + h, border);
         drawCenteredString(poseStack, this.font, label, x + (w / 2), y + (h - 8) / 2, hovered ? 0xFFFFFF : 0xCCCCCC);
-        *///?}
+        //?}
     }
 
     @Override
@@ -1085,18 +1085,18 @@ public class JamScreen extends Screen {
         graphics.fill(0, 0, this.width, this.height, 0xCC000000);
     }
     *///?} else if >1.19.4 {
-    @Override
+    /*@Override
     public void renderBackground(GuiGraphics graphics) {
         super.renderBackground(graphics);
         graphics.fill(0, 0, this.width, this.height, 0xCC000000);
     }
-    //?} else {
-    /*@Override
+    *///?} else {
+    @Override
     public void renderBackground(PoseStack poseStack) {
         super.renderBackground(poseStack);
         GuiComponent.fill(poseStack, 0, 0, this.width, this.height, 0xCC000000);
     }
-    *///?}
+    //?}
 
     @Override
     public boolean isPauseScreen() {

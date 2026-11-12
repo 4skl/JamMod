@@ -6,15 +6,6 @@ plugins {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
-sourceSets {
-    main {
-        java {
-            srcDir project(':common').file('src/main/java')
-        }
-    }
-}
-
-// 1. Enable Forge's Jar-in-Jar system before the minecraft block
 jarJar.enable()
 
 minecraft {
@@ -39,7 +30,7 @@ minecraft {
 }
 
 dependencies {
-    minecraft 'net.minecraftforge:forge:1.19.2-43.3.0'
+    minecraft 'net.minecraftforge:forge:1.19.2-43.3.13'
 
     compileOnly(project(':lavaplayer-bundle')) { transitive = false }
     minecraftLibrary(project(':lavaplayer-bundle')) { transitive = false }
@@ -50,28 +41,19 @@ dependencies {
     }
 }
 
-// 2. Reobfuscate the jarJar artifact from Mojang mappings to SRG for production
 reobf {
     jarJar { }
 }
 tasks.jarJar.finalizedBy('reobfJarJar')
 
-// 3. Make the jarJar artifact the primary output (JamMod-1.0.0.jar)
+def modBaseName = rootProject.findProperty('mod_name') ?: rootProject.findProperty('mod_id') ?: 'JamMod'
+
 tasks.jarJar.configure {
+    archiveBaseName.set("${modBaseName}-${project.name}")
     archiveClassifier.set('')
 }
 
 jar {
+    archiveBaseName.set("${modBaseName}-${project.name}")
     archiveClassifier.set('slim')
-    manifest {
-        attributes([
-                'Specification-Title'     : 'jammod',
-                'Specification-Vendor'    : '4skl',
-                'Specification-Version'   : '1',
-                'Implementation-Title'    : project.name,
-                'Implementation-Version'  : project.version,
-                'Implementation-Vendor'   : '4skl',
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
-    }
 }

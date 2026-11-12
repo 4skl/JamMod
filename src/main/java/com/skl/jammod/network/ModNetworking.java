@@ -41,50 +41,50 @@ public class ModNetworking {
                 .encoder(C2SJamActionPacket::encode)
                 .decoder(C2SJamActionPacket::decode)
                 //? if >=1.19 {
-                .consumerMainThread(C2SJamActionPacket::handle)
-                //?} else {
-                /*.consumer(C2SJamActionPacket::handle)
-                *///?}
+                /*.consumerMainThread(C2SJamActionPacket::handle)
+                *///?} else {
+                .consumer(C2SJamActionPacket::handle)
+                //?}
                 .add();
 
         CHANNEL.messageBuilder(S2CSyncJamPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(S2CSyncJamPacket::encode)
                 .decoder(S2CSyncJamPacket::decode)
                 //? if >=1.19 {
-                .consumerMainThread(S2CSyncJamPacket::handle)
-                //?} else {
-                /*.consumer(S2CSyncJamPacket::handle)
-                *///?}
+                /*.consumerMainThread(S2CSyncJamPacket::handle)
+                *///?} else {
+                .consumer(S2CSyncJamPacket::handle)
+                //?}
                 .add();
 
         CHANNEL.messageBuilder(S2CSyncJamListPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(S2CSyncJamListPacket::encode)
                 .decoder(S2CSyncJamListPacket::decode)
                 //? if >=1.19 {
-                .consumerMainThread(S2CSyncJamListPacket::handle)
-                //?} else {
-                /*.consumer(S2CSyncJamListPacket::handle)
-                *///?}
+                /*.consumerMainThread(S2CSyncJamListPacket::handle)
+                *///?} else {
+                .consumer(S2CSyncJamListPacket::handle)
+                //?}
                 .add();
 
         CHANNEL.messageBuilder(S2CSetLocalVolumePacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(S2CSetLocalVolumePacket::encode)
                 .decoder(S2CSetLocalVolumePacket::decode)
                 //? if >=1.19 {
-                .consumerMainThread(S2CSetLocalVolumePacket::handle)
-                //?} else {
-                /*.consumer(S2CSetLocalVolumePacket::handle)
-                *///?}
+                /*.consumerMainThread(S2CSetLocalVolumePacket::handle)
+                *///?} else {
+                .consumer(S2CSetLocalVolumePacket::handle)
+                //?}
                 .add();
 
         CHANNEL.messageBuilder(S2CSetOverlayConfigPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(S2CSetOverlayConfigPacket::encode)
                 .decoder(S2CSetOverlayConfigPacket::decode)
                 //? if >=1.19 {
-                .consumerMainThread(S2CSetOverlayConfigPacket::handle)
-                //?} else {
-                /*.consumer(S2CSetOverlayConfigPacket::handle)
-                *///?}
+                /*.consumerMainThread(S2CSetOverlayConfigPacket::handle)
+                *///?} else {
+                .consumer(S2CSetOverlayConfigPacket::handle)
+                //?}
                 .add();
     }
     //?}
